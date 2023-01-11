@@ -206,7 +206,7 @@ try:
                     
                     st.info(f"Saved folder path is: {saved_folder_path} ")
                     
-                    files_wd_csv = [file for file in os.listdir(saved_folder_path) if file.endswith((".csv", ".xlsx"))]
+                    files_wd_csv = [file for file in os.listdir(saved_folder_path)]
 
                     st.info(f"All csv and excel files in the WD: {files_wd_csv}")
                     
