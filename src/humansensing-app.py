@@ -203,18 +203,6 @@ try:
                     
                     # get list of temporarily stored files (.csv, .xlsx, .sqlite, etc.)
                     store_directory = os.getcwd()
-                    #st.info(f"In read_zip_files directory: {read_zip_files}")
-                    
-                    #st.info(f"Individual signal path is: {individual_signal_path} ")
-                    
-                    #dire = os.path.join(read_zip_files, read_zip_files.split('\\')[-1])
-                    #st.info(dire)
-                    
-                    #files_wd_csv = [file for file in os.listdir(dire)]
-
-                    #st.info(f"All csv and excel files in the WD: {files_wd_csv}")
-                    
-
                     
                     ST_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
                                     labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
