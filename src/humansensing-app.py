@@ -210,7 +210,7 @@ try:
 
                     st.info(f"All csv and excel files in the WD: {files_wd_csv}")
                     
-                    dire = read_zip_files + '/'  + read_zip_files.split('\\')[-1]
+                    dire = os.path.join(read_zip_files, read_zip_files.split('\\')[-1]))
                     st.info(dire)
                     
                     ST_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
