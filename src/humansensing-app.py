@@ -168,7 +168,8 @@ try:
             create_csv_xlsx_list = find_all_csv_xslx_files(read_zip_files)
             
             #fetch signal directory path and pat number 
-            individual_signal_path = create_csv_xlsx_list[0].rsplit("\\", 1)[0]
+            #individual_signal_path = create_csv_xlsx_list[0].rsplit("\\", 1)[0]
+            individual_signal_path = os.path.join(read_zip_files, read_zip_files.split('\\')[-1])
             pat_number_code = individual_signal_path.split("/")[-1].split(".")[-1]
             #print("Individual path", individual_signal_path)
             #print("Pat number code: ", pat_number_code)
@@ -202,16 +203,16 @@ try:
                     
                     # get list of temporarily stored files (.csv, .xlsx, .sqlite, etc.)
                     store_directory = os.getcwd()
-                    st.info(f"In read_zip_files directory: {read_zip_files}")
+                    #st.info(f"In read_zip_files directory: {read_zip_files}")
                     
-                    st.info(f"Individual signal path is: {individual_signal_path} ")
+                    #st.info(f"Individual signal path is: {individual_signal_path} ")
                     
-                    dire = os.path.join(read_zip_files, read_zip_files.split('\\')[-1])
-                    st.info(dire)
+                    #dire = os.path.join(read_zip_files, read_zip_files.split('\\')[-1])
+                    #st.info(dire)
                     
-                    files_wd_csv = [file for file in os.listdir(dire)]
+                    #files_wd_csv = [file for file in os.listdir(dire)]
 
-                    st.info(f"All csv and excel files in the WD: {files_wd_csv}")
+                    #st.info(f"All csv and excel files in the WD: {files_wd_csv}")
                     
 
                     
