@@ -202,7 +202,7 @@ try:
                     
                     # get list of temporarily stored files (.csv, .xlsx, .sqlite, etc.)
                     store_directory = os.getcwd()
-                    st.info(f"In directory: {store_directory}")
+                    st.info(f"In read_zip_files directory: {read_zip_files}")
                     
                     st.info(f"Individual signal path is: {individual_signal_path} ")
                     
