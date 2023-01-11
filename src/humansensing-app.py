@@ -206,9 +206,11 @@ try:
                     
                     st.info(f"Individual signal path is: {individual_signal_path} ")
                     
-                    files_wd_csv = [file for file in os.listdir(individual_signal_path)]
+                    files_wd_csv = [file for file in os.listdir(read_zip_files)]
 
                     st.info(f"All csv and excel files in the WD: {files_wd_csv}")
+                    
+                    st.info(f"Path try: {os.path.join(read_zip_files, '/' ,read_zip_files.split('\')[-1]}")
                     
                     ST_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
                                     labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
