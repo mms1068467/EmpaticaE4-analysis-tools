@@ -199,6 +199,15 @@ try:
                 try:
                     st.markdown("---")
                     st.subheader("ST signal plot")
+                    
+                    # get list of temporarily stored files (.csv, .xlsx, .sqlite, etc.)
+                    store_directory = os.getcwd()
+                    st.info(f"In directory: {store_directory}")
+                    
+                    files_wd_csv = [file for file in os.listdir(store_directory) if file.endswith((".csv", ".xlsx"))]
+
+                    st.info(f"All csv and excel files in the WD: {files_wd_csv}")
+                    
                     ST_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
                                     labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
                                     signal = "ST")
