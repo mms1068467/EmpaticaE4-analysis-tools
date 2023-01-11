@@ -204,9 +204,9 @@ try:
                     store_directory = os.getcwd()
                     st.info(f"In directory: {store_directory}")
                     
-                    st.info(f"Saved folder path is: {saved_folder_path} ")
+                    st.info(f"Individual signal path is: {individual_signal_path} ")
                     
-                    files_wd_csv = [file for file in os.listdir(saved_folder_path)]
+                    files_wd_csv = [file for file in os.listdir(individual_signal_path)]
 
                     st.info(f"All csv and excel files in the WD: {files_wd_csv}")
                     
