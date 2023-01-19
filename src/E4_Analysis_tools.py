@@ -273,7 +273,7 @@ def plot_ST(ST_labeled, raw = True, add_tags: bool = False, tags_path: str = Non
         dmin = ST_labeled['ST'].min()
         dmax = ST_labeled['ST'].max()
 
-        figST = go.Figure(data = go.Scatter(x = ST_labeled['datetime'], y = ST_labeled["ST"], line = dict(color = "orange"), name = "Raw Skin Temperature (ST) in ° C"))
+        figST = go.Figure(data = go.Scatter(x = ST_labeled['datetime'], y = ST_labeled["ST"], line = dict(color = "red"), name = "Raw Skin Temperature (ST) in ° C"))
 
         figST.update_xaxes(title_text='Time')
         figST.update_yaxes(title_text='Raw ST (° C)')
@@ -297,7 +297,7 @@ def plot_ST(ST_labeled, raw = True, add_tags: bool = False, tags_path: str = Non
         dmax = ST_labeled['ST_filtered'].max()
 
 
-        figST = go.Figure(data = go.Scatter(x = ST_labeled['datetime'], y = ST_labeled["ST_filtered"], line = dict(color = "orange"), name = "Filtered Skin Temperature (ST) in ° C"))
+        figST = go.Figure(data = go.Scatter(x = ST_labeled['datetime'], y = ST_labeled["ST_filtered"], line = dict(color = "red"), name = "Filtered Skin Temperature (ST) in ° C"))
 
         figST.update_xaxes(title_text='Time')
         figST.update_yaxes(title_text='Filtered ST (° C)')
