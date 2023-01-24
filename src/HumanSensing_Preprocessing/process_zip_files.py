@@ -101,6 +101,8 @@ def open_and_extract_zip_pat(path, zip_folder: str) -> list:
         #print(name)
         z.extract(name, folder_location)
 
+    
+
     return folder_location
 
 

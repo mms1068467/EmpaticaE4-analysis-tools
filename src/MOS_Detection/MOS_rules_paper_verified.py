@@ -144,16 +144,16 @@ def MOS_main_df(df,
              MOSpercentage: int = 75, latency: int = 10, print_number_of_time_rules_are_met: int = False):
     # Check if 'time_iso' is in datetime64[ns] format
     # print(MOS_data_prep.dtypes)
-
+    
     if "time" in df.columns:
         df.rename(columns={"time": "time_iso"}, inplace=True)
-
+    
     data = rule_preparation(df)
     first_derivative_GSR, first_derivative_ST = ST_GSR_derivative_calculation(data)
-
+    
     GSR_increase_indicator = calculate_binary_increase_indicator_GSR(first_derivative_GSR)
     ST_decrease_indicator = calculate_binary_decrease_indicator_ST(first_derivative_ST)
-
+    
     # create full dataframe for MOS rule check
     data_r = pd.DataFrame(list(zip(data['time_iso'].values,
                                    data['TimeNum'].values, data['GSR'].values, data['GSR_standardized'],
@@ -246,7 +246,7 @@ def MOS_main_df(df,
                                 mos_identified[['time_iso', 'MOS_score']],
                                 on='time_iso', how='left')
 
-    return final_MOS_output, data_r1_r2_r3_r4
+    return final_MOS_output, data_r1_r2_r3_r4, len(mos_identified)
 
 
 ################ Rules ################
