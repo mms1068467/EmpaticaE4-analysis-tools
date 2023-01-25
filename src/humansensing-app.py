@@ -15,6 +15,17 @@ SALK Streamlit -- Version 1.0
     conjoined through siple add_trace() function
     implement option for plotting stress sections?
 
+SALK Streamlit -- Version 2.0
+
+- Integrated the butterworth filter for available individual signals (ST, BVP and EDA)
+- Integrated the signal time range filter
+- Set the HRV as an signal independent from IBI
+- Integrated the Generate MOS on combined signals plot.
+
+#TODO
+Set generated files to delete on closed browser - memory leak issue / resource limits low
+
+
 """
 
 import sys
@@ -48,7 +59,7 @@ import random
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-
+#
 from io import StringIO # for hashing the .sqlite file
 
 from MOS_Detection import MOS_signal_preparation as msp
@@ -72,7 +83,17 @@ try:
     def save_uploadedfile(uploaded_file, path: str):
         with open(os.path.join(path, uploaded_file.name), "wb") as f:
             f.write(uploaded_file.getbuffer())
-        return st.success("Temporarily saved file: {} to {}".format(uploaded_file.name, path))
+        #return st.success("Temporarily saved file: {} to {}".format(uploaded_file.name, path))
+
+    def add_groundtruth_mos(fig, MOS_detected):
+        MOS_detected = final_MOS_output[~final_MOS_output['MOS_score'].isna()]
+
+        for i in MOS_detected.index:
+            if MOS_detected.MOS_score[i] > 75:
+                fig.add_vline(MOS_detected['time_iso'][i], line_dash = 'dash',line_color='red')
+                #fig.update_layout(title = "Preprocessed signals plot with MOS")
+
+        return fig
 
 
     #### Caching the plot functions to (slightly) increase performance
@@ -104,6 +125,7 @@ try:
     def open_and_extract_zip_pat(path, uploaded_E4_zip_folder):
 
         extract_zip = pzf.open_and_extract_zip_pat(path, uploaded_E4_zip_folder)
+        
         return extract_zip
 
 
@@ -162,188 +184,255 @@ try:
             
             #read and extract files from zip to create a list
             read_zip_files = open_and_extract_zip_pat(path, uploaded_E4_zip_folder)
+            st.success("Temporarily saved folder: {} to {}".format(full_file_name, path))
             #print("Pathway to Pat.x: ", read_zip_files)
 
             #create a signal path list to access them
             create_csv_xlsx_list = find_all_csv_xslx_files(read_zip_files)
             
             #fetch signal directory path and pat number 
-            #individual_signal_path = create_csv_xlsx_list[0].rsplit("\\", 1)[0]
-            individual_signal_path = os.path.join(read_zip_files, read_zip_files.split('\\')[-1])
+            individual_signal_path = create_csv_xlsx_list[0].rsplit("\\", 1)[0]
             pat_number_code = individual_signal_path.split("/")[-1].split(".")[-1]
+            
             #print("Individual path", individual_signal_path)
             #print("Pat number code: ", pat_number_code)
 
-        except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
-            print("\nRng{}: Unable to process your request ! Something wrong in the SALK E4 zip file section".format(
-                random.randint(0, 50)))
-        finally:
-            #removes the file when saved locally
-            os.remove(os.path.join(path, uploaded_E4_zip_folder.name))
-    
-
-        ####PROCESS THE DATA
-        
-        try:
-            #sidebar signal options
-            st.sidebar.title("Select signals to display:")
-            checkboxST = st.sidebar.checkbox("Skin Temperature (ST)")
-            checkboxACC = st.sidebar.checkbox("Acceleration (ACC)")
-            checkboxBVP = st.sidebar.checkbox("Blood Volume Pressure (BVP)")
-            checkboxEDA = st.sidebar.checkbox("Electrodermal Activity (EDA)")
-            checkboxHR = st.sidebar.checkbox("Heart Rate (HR)")
-            checkboxIBI = st.sidebar.checkbox("Interbeat Interval (IBI)")
-            
-            #(pre)processes the individual signals and plots them as raw or filtered
-            #throws an error if a given signal .csv file is not found in the initial folder
-            if checkboxST:
-                try:
-                    st.markdown("---")
-                    st.subheader("ST signal plot")
-                    
-                    # get list of temporarily stored files (.csv, .xlsx, .sqlite, etc.)
-                    store_directory = os.getcwd()
-                    
-                    ST_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
-                                    labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
-                                    signal = "ST")
-                    ST_preprocessed = e4at.preprocess_ST(ST_labeled)
-
-                    checkboxSTraw = st.checkbox("Plot ST raw")
-                    
-                    if checkboxSTraw:
-
-                        STfigure = e4at.plot_ST(ST_labeled)
-                        
-                        st.plotly_chart(STfigure, use_container_width=True)
-
-                    checkboxSTfiltered = st.checkbox("Plot ST filtered")
-
-                    if checkboxSTfiltered:
-                        STfigureFiltered = e4at.plot_ST(ST_preprocessed, raw = False)
-                        
-                        st.plotly_chart(STfigureFiltered, use_container_width=True)
-
-                except(FileNotFoundError):
-                    st.error("ERROR: Looks like the TEMP.csv does not exist")
-
-
-            if checkboxACC:
-                try:      
-                    st.markdown("---")
-                    st.subheader("ACC signal plot")
-                    
-                    ACC_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/ACC.csv"),
-                                    labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
-                                    signal = "ACC")
-                    ACCfigure = plot_ACC(ACC_labeled)
-                    
-                    st.plotly_chart(ACCfigure, use_container_width=True)
-
-                except(FileNotFoundError):
-                    st.error("ERROR: Looks like the ACC.csv does not exist")
-
-
-            if checkboxBVP:
-                try:
-                    st.markdown("---")
-                    st.subheader("BVP signal plot")
-
-                    BVP_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/BVP.csv"),
-                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
-                                        signal = "BVP")
-                    BVP_preprocessed = e4at.preprocess_BVP(BVP_labeled)
-
-                    checkboxBVPraw = st.checkbox("Plot BVP raw")
-                    
-                    if checkboxBVPraw:
-                        
-                        BVPfigure = plot_BVP(BVP_labeled)
-                        BVPfigure.update_xaxes(automargin=True)
-                        
-                        st.plotly_chart(BVPfigure, use_container_width=True)
-                    
-                    checkboxBVPfiltered = st.checkbox("Plot BVP filtered")
-
-                    if checkboxBVPfiltered:
-
-                        BVPfigureFiltered = plot_BVP(BVP_preprocessed, raw = False)
-                        
-                        st.plotly_chart(BVPfigureFiltered, use_container_width=True)
-
-                except(FileNotFoundError):
-                    st.error("ERROR: Looks like the BVP.csv does not exist")
-
-
-            if checkboxEDA:
-                try:
-                    st.markdown("---")
-                    st.subheader("EDA signal plot")
-
-                    EDA_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/EDA.csv"),
-                                    labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
-                                    signal = "EDA")
-                    EDA_preprocessed = e4at.preprocess_EDA(EDA_labeled)
-
-                    checkboxEDAraw = st.checkbox("Plot EDA raw")
-
-                    if checkboxEDAraw:
-
-                        EDAfigureRaw = e4at.plot_EDA(EDA_labeled, raw = True)
-                        
-                        st.plotly_chart(EDAfigureRaw, use_container_width=True)
-
-                    checkboxEDAfiltered = st.checkbox("Plot EDA filtered")
-                    
-                    #needs to undergo preprocess_EDA() butterworth
-                    if checkboxEDAfiltered:
-                        
-                        EDAfigureFiltered = e4at.plot_EDA(EDA_preprocessed, raw = False)
-                        
-                        st.plotly_chart(EDAfigureFiltered, use_container_width=True)
-
-                except(FileNotFoundError):
-                    st.error("ERROR: Looks like the EDA.csv does not exist")
-
-
-            if checkboxHR:
-                try:
-                    st.markdown("---")
-                    st.subheader("HR signal plot")
-                    HR_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/HR.csv"),
-                                    labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
-                                    signal = "HR")
-                    HRfigure = e4at.plot_HR(HR_labeled)
-                    
-                    st.plotly_chart(HRfigure, use_container_width=True)
-
-                except(FileNotFoundError):
-                    st.error("ERROR: Looks like the HR.csv does not exist")
-
-
-            if checkboxIBI:
+            try:
+                #### SIDEBAR
+                #sidebar signal options
+                st.sidebar.title("Select signals to display")
+                checkboxST = st.sidebar.checkbox("Skin Temperature (ST)")
+                checkboxACC = st.sidebar.checkbox("Acceleration (ACC)")
+                checkboxBVP = st.sidebar.checkbox("Blood Volume Pressure (BVP)")
+                checkboxEDA = st.sidebar.checkbox("Electrodermal Activity (EDA)")
+                checkboxHR = st.sidebar.checkbox("Heart Rate (HR)")
+                checkboxIBI = st.sidebar.checkbox("Interbeat Interval (IBI)")
                 checkboxHRV = st.sidebar.checkbox("Heart Rate Variability (HRV)")
 
-                try:
-                    st.markdown("---")
-                    st.subheader("IBI signal plot")
-                    IBI_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/IBI.csv"),
-                                    labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
-                                    signal = "IBI")
-                    IBIfigure = e4at.plot_IBI(IBI_labeled)
-                    
-                    st.plotly_chart(IBIfigure, use_container_width=True)
+                #sidebar time filtering
+                st.sidebar.markdown("---")
+                st.sidebar.title("Select signal time range")
+                ST_labeled_date_extract = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "ST")
 
-                except(FileNotFoundError):
-                    st.error("ERROR: Looks like the IBI.csv does not exist")
+                duration = pd.to_datetime(ST_labeled_date_extract['datetime'].max()) - pd.to_datetime(ST_labeled_date_extract['datetime'].min())
+                
+                double_ended_seconds_slider_filter = st.sidebar.slider("Seconds after start of recording to display",
+                                                            value=[duration.seconds - duration.seconds,
+                                                                    duration.seconds])
+
+                st.sidebar.write("Duration of recording: \t ", " \t => \t", time.strftime("%H:%M:%S", time.gmtime(duration.seconds)))
+
+                # double_ended_seconds_slider_filter = st.sidebar.slider("Seconds after start of recording to display", min_value = start_date, value= end_date, max_value= end_date, format=format)
+                start_time = ST_labeled_date_extract['datetime'].min() + datetime.timedelta(seconds=double_ended_seconds_slider_filter[0])
+                end_time = ST_labeled_date_extract['datetime'].min() + datetime.timedelta(seconds=double_ended_seconds_slider_filter[1])
+                #filtered_data = ST_labeled_date_extract[(ST_labeled_date_extract['datetime'] >= start_time) & (ST_labeled_date_extract['datetime'] <= end_time)] 
+        
+                #(pre)processes the individual signals and plots them as raw or filtered
+                #throws an error if a given signal .csv file is not found in the initial folder
+                if checkboxST:
+                    try:
+                        st.markdown("---")
+                        st.subheader("ST signal plot")
+                        ST_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "ST")
+                        ST_labeled = ST_labeled[(ST_labeled['datetime'] >= start_time) & (ST_labeled['datetime'] <= end_time)] 
+        
+                        #st.dataframe(ST_labeled)
+
+                        checkboxSTraw = st.checkbox("Plot ST raw")
+                        
+                        if checkboxSTraw:
+                            #st.dataframe(ST_labeled)
+
+                            STfigure = e4at.plot_ST(ST_labeled)
+                            
+                            st.plotly_chart(STfigure, use_container_width=True)
+
+                        checkboxSTfiltered = st.checkbox("Plot ST filtered")
+
+                        if checkboxSTfiltered:
+                            try:
+                                ST_butterworth_pass_filter = st.number_input('Butter filter order', value=2, key="stbutterfilter")
+                                ST_low_pass_filter = st.number_input('Low-pass cutoff frequency', value=0.050, step=0.001,
+                                                                format="%.3f", key="stlowpassfilter")
+                                ST_high_pass_filter = st.number_input('High-pass cutoff frequency', value=0.005, step=0.001,
+                                                                format="%.3f", key="sthighpassfilter")
+                            
+
+                                ST_preprocessed = e4at.preprocess_ST(ST_labeled, order=ST_butterworth_pass_filter, 
+                                                        lowpass_cutoff_frequency=ST_low_pass_filter,
+                                                        highpass_cutoff_frequency=ST_high_pass_filter)
+                                STfigureFiltered = e4at.plot_ST(ST_preprocessed, raw = False)
+                    
+                                st.plotly_chart(STfigureFiltered, use_container_width=True)
+                            except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
+                                st.error("""ERROR: looks like some of filtering values are out of range. Please adjust them accordingly: 
+                                \n Butter filter order: => 0 
+                                \nLow-pass and High-pass cutoff frequency: 0.001 - 0.999 
+                                """)
+                    except(FileNotFoundError):
+                        st.error("ERROR: Looks like the TEMP.csv does not exist")
+
+
+                if checkboxACC:
+                    try:      
+                        st.markdown("---")
+                        st.subheader("ACC signal plot")
+                        
+                        ACC_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/ACC.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "ACC")
+                        ACC_labeled = ACC_labeled[(ACC_labeled['datetime'] >= start_time) & (ACC_labeled['datetime'] <= end_time)]
+                        ACCfigure = plot_ACC(ACC_labeled)
+                        
+                        st.plotly_chart(ACCfigure, use_container_width=True)
+
+                    except(FileNotFoundError):
+                        st.error("ERROR: Looks like the ACC.csv does not exist")
+
+
+                if checkboxBVP:
+                    try:
+                        st.markdown("---")
+                        st.subheader("BVP signal plot")
+
+                        BVP_labeled = merge_data(signal_path = os.path.join(individual_signal_path + "/BVP.csv"),
+                                            labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                            signal = "BVP")
+                        BVP_labeled = BVP_labeled[(BVP_labeled['datetime'] >= start_time) & (BVP_labeled['datetime'] <= end_time)]
+                        
+
+                        checkboxBVPraw = st.checkbox("Plot BVP raw")
+                        
+                        if checkboxBVPraw:
+                            
+                            BVPfigure = plot_BVP(BVP_labeled)
+                            
+                            st.plotly_chart(BVPfigure, use_container_width=True)
+                        
+                        checkboxBVPfiltered = st.checkbox("Plot BVP filtered")
+
+                        if checkboxBVPfiltered:
+                            try:
+                                BVP_butterworth_pass_filter = st.number_input('Butter filter order', value=4, key="bvpbutterfilter")
+                                BVP_low_pass_filter = st.number_input('Low-pass cutoff frequency', value=0.36, step=0.01,
+                                                                format="%.3f", key="bvplowpassfilter")
+                                BVP_high_pass_filter = st.number_input('High-pass cutoff frequency', value=0.01, step=0.01,
+                                                                format="%.3f", key="bvphighpassfilter")
+                                
+                                BVP_preprocessed = e4at.preprocess_BVP(BVP_labeled, low_order=BVP_butterworth_pass_filter, 
+                                                        lowpass_cutoff_frequency=BVP_low_pass_filter,
+                                                        highpass_cutoff_frequency=BVP_high_pass_filter)
+
+                                BVPfigureFiltered = plot_BVP(BVP_preprocessed, raw = False)
+                                
+                                st.plotly_chart(BVPfigureFiltered, use_container_width=True)
+                            except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
+                                st.error("""ERROR: looks like some of filtering values are out of range. Please adjust them accordingly: 
+                                \n Butter filter order: => 0 
+                                \nLow-pass and High-pass cutoff frequency: 0.001 - 0.999 
+                                """)
+                    except(FileNotFoundError):
+                        st.error("ERROR: Looks like the BVP.csv does not exist")
+
+
+                if checkboxEDA:
+                    try:
+                        st.markdown("---")
+                        st.subheader("EDA signal plot")
+
+                        EDA_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/EDA.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "EDA")
+                        EDA_labeled = EDA_labeled[(EDA_labeled['datetime'] >= start_time) & (EDA_labeled['datetime'] <= end_time)]
+                        
+
+                        checkboxEDAraw = st.checkbox("Plot EDA raw")
+
+                        if checkboxEDAraw:
+
+                            EDAfigureRaw = e4at.plot_EDA(EDA_labeled, raw = True)
+                            
+                            st.plotly_chart(EDAfigureRaw, use_container_width=True)
+
+                        checkboxEDAfiltered = st.checkbox("Plot EDA filtered")
+                        
+                        #needs to undergo preprocess_EDA() butterworth
+                        if checkboxEDAfiltered:
+                            try:
+                                        
+                                EDA_butterworth_pass_filter = st.number_input('Butter filter order', value=1, key="edabutterfilter")
+                                EDA_low_pass_filter = st.number_input('Low-pass cutoff frequency', value=0.50, step=0.01,
+                                                                format="%.2f", key="edalowpassfilter")
+                                EDA_high_pass_filter = st.number_input('High-pass cutoff frequency', value=0.0025, step=0.0001,
+                                                                format="%.4f", key="edahighpassfilter")
+                                
+                                EDA_preprocessed = e4at.preprocess_EDA(EDA_labeled, order=EDA_butterworth_pass_filter, 
+                                                        lowpass_cutoff_frequency=EDA_low_pass_filter,
+                                                        highpass_cutoff_frequency=EDA_high_pass_filter)
+
+                                EDAfigureFiltered = e4at.plot_EDA(EDA_preprocessed, raw = False)
+                                
+                                st.plotly_chart(EDAfigureFiltered, use_container_width=True)
+                            except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
+                                st.error("""ERROR: looks like some of filtering values are out of range. Please adjust them accordingly: 
+                                \n Butter filter order: => 0 
+                                \nLow-pass and High-pass cutoff frequency: 0.001 - 0.999 
+                                """)
+                    except(FileNotFoundError):
+                        st.error("ERROR: Looks like the EDA.csv does not exist")
+
+
+                if checkboxHR:
+                    try:
+                        st.markdown("---")
+                        st.subheader("HR signal plot")
+                        HR_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/HR.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "HR")
+                        HR_labeled = HR_labeled[(HR_labeled['datetime'] >= start_time) & (HR_labeled['datetime'] <= end_time)]
+                        HRfigure = e4at.plot_HR(HR_labeled)
+                        
+                        st.plotly_chart(HRfigure, use_container_width=True)
+
+                    except(FileNotFoundError):
+                        st.error("ERROR: Looks like the HR.csv does not exist")
+
+
+                if checkboxIBI:
+                    
+
+                    try:
+                        st.markdown("---")
+                        st.subheader("IBI signal plot")
+                        IBI_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/IBI.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "IBI")
+                        IBI_labeled = IBI_labeled[(IBI_labeled['datetime'] >= start_time) & (IBI_labeled['datetime'] <= end_time)]
+                        
+                        IBIfigure = e4at.plot_IBI(IBI_labeled)
+                        
+                        st.plotly_chart(IBIfigure, use_container_width=True)
+
+                    except(FileNotFoundError):
+                        st.error("ERROR: Looks like the IBI.csv does not exist")
 
                 if checkboxHRV:
                     try:
-
                         st.markdown("---")
                         st.subheader("HRV signal plot")
+                        IBI_labeled = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/IBI.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "IBI")
+                        IBI_labeled = IBI_labeled[(IBI_labeled['datetime'] >= start_time) & (IBI_labeled['datetime'] <= end_time)]
+                        
 
                         HRV_labeled = e4at.get_HRV_from_IBI(IBI_labeled)
+                        HRV_labeled = HRV_labeled[(HRV_labeled['datetime'] >= start_time) & (HRV_labeled['datetime'] <= end_time)]
+                    
                         HRVfigure = e4at.plot_HRV(HRV_labeled)
                         
                         st.plotly_chart(HRVfigure, use_container_width=True)
@@ -351,164 +440,240 @@ try:
                         st.error("ERROR: Looks like the IBI.csv does not exist or something is wrong with deriving HRV from IBI")
                     
 
-            ####Combining of the signals into a single graph
-            apply_merge_signals = st.sidebar.button("Apply merging of selected signals")
-            if apply_merge_signals:
-                try:
-                    figure_merge = go.Figure()
-                    #list for Y-axis min and max values so the MOS stress lines can be plotted in according Y value range
-                    MOS_ymin_list = []
-                    MOS_ymax_list = []
-
-                  
-                    #merges a trace for each given signal and records its Y min and max values
-                    if checkboxST:
-                     
-                        if checkboxSTraw:
-                            figure_merge.add_trace(go.Scatter(x = ST_labeled['datetime'], y = ST_labeled["ST"], line = dict(color = "orange"), name = "Raw Skin Temperature (ST) in ° C"))
-                            
-                            MOS_ymin_list.append(ST_labeled['ST'].min())
-                            MOS_ymax_list.append(ST_labeled['ST'].max())
-                  
-                        if checkboxSTfiltered:
-                            figure_merge.add_trace(go.Scatter(x = ST_labeled['datetime'], y = ST_preprocessed["ST_filtered"], line = dict(color = "orange"), name = "Filtered Temperature (ST) in ° C"))
-                            
-                            MOS_ymin_list.append(ST_preprocessed['ST'].min())
-                            MOS_ymax_list.append(ST_preprocessed['ST'].max())
-
+                ####Combining of the signals into a single graph
+                st.sidebar.markdown("---")
+                st.sidebar.title("Merge signals")
+                apply_merge_signals = st.sidebar.checkbox("Apply merging of selected signals")
                 
-                    if checkboxACC:
-                        figure_merge.add_trace(go.Scatter(x = ACC_labeled["datetime"], y = ACC_labeled["X-axis"], line=dict(color="red"),
-                                        name = 'X-Axis Acceleration in g'))
-                        figure_merge.add_trace(go.Scatter(x = ACC_labeled['datetime'], y = ACC_labeled['Y-axis'], line = dict(color = 'green'),
-                                name = 'X-Axis Acceleration in g'))
-                        figure_merge.add_trace(go.Scatter(x = ACC_labeled['datetime'], y = ACC_labeled['Z-axis'], line = dict(color = 'blue'),
-                                name = 'Z-Axis Acceleration in g'))
 
-                        MOS_ymin_list.append(ACC_labeled['X-axis'].min())
-                        MOS_ymax_list.append(ACC_labeled['X-axis'].max())
-                        MOS_ymin_list.append(ACC_labeled['Y-axis'].min())
-                        MOS_ymax_list.append(ACC_labeled['Y-axis'].max())
-                        MOS_ymin_list.append(ACC_labeled['Z-axis'].min())
-                        MOS_ymax_list.append(ACC_labeled['Z-axis'].max())
 
-                  
-                    if checkboxBVP:
-                      
-                        if checkboxBVPraw:
-                            figure_merge.add_trace(go.Scatter(x = BVP_labeled['datetime'], y = BVP_labeled["BVP"], line = dict(color = "purple"), name = "Raw Blood Volume Pressure (BVP)"))
+                if apply_merge_signals:
+                    try:
+                        figure_merge = go.Figure()
+                        dataframe_merge = pd.DataFrame()
+                        #dataframe_merge_datetime = dataframe_merge.join(ST_labeled_date_extract['datetime'])
+                        dataframe_merge['datetime'] = ST_labeled_date_extract['datetime']
+                        
+                        #list for Y-axis min and max values so the MOS stress lines can be plotted in according Y value range
+                        MOS_ymin_list = []
+                        MOS_ymax_list = []
+
+                    
+                        #merges a trace for each given signal and records its Y min and max values
+                        if checkboxST:
+                            dataframe_merge = pd.merge(dataframe_merge, ST_labeled[["ST", "datetime"]], left_on="datetime", right_on="datetime", how="left")
+                        
+                            if checkboxSTraw:
+                                figure_merge.add_trace(go.Scatter(x = ST_labeled['datetime'], y = ST_labeled["ST"], line = dict(color = "orange"), name = "Raw Skin Temperature (ST) in ° C"))
+                                
+                                MOS_ymin_list.append(ST_labeled['ST'].min())
+                                MOS_ymax_list.append(ST_labeled['ST'].max())
+                    
+                            if checkboxSTfiltered:
+                                figure_merge.add_trace(go.Scatter(x = ST_labeled['datetime'], y = ST_preprocessed["ST_filtered"], line = dict(color = "orange"), name = "Filtered Temperature (ST) in ° C"))
+                                
+                                MOS_ymin_list.append(ST_preprocessed['ST_filtered'].min())
+                                MOS_ymax_list.append(ST_preprocessed['ST_filtered'].max())
+
+                    
+                        if checkboxACC:
                             
-                            MOS_ymin_list.append(BVP_labeled['BVP'].min())
-                            MOS_ymax_list.append(BVP_labeled['BVP'].max())
+                            figure_merge.add_trace(go.Scatter(x = ACC_labeled["datetime"], y = ACC_labeled["X-axis"], line=dict(color="red"),
+                                            name = 'X-Axis Acceleration in g'))
+                            figure_merge.add_trace(go.Scatter(x = ACC_labeled['datetime'], y = ACC_labeled['Y-axis'], line = dict(color = 'green'),
+                                    name = 'X-Axis Acceleration in g'))
+                            figure_merge.add_trace(go.Scatter(x = ACC_labeled['datetime'], y = ACC_labeled['Z-axis'], line = dict(color = 'blue'),
+                                    name = 'Z-Axis Acceleration in g'))
+
+                            MOS_ymin_list.append(ACC_labeled['X-axis'].min())
+                            MOS_ymax_list.append(ACC_labeled['X-axis'].max())
+                            MOS_ymin_list.append(ACC_labeled['Y-axis'].min())
+                            MOS_ymax_list.append(ACC_labeled['Y-axis'].max())
+                            MOS_ymin_list.append(ACC_labeled['Z-axis'].min())
+                            MOS_ymax_list.append(ACC_labeled['Z-axis'].max())
+
+                    
+                        if checkboxBVP:
+                        
+                            if checkboxBVPraw:
+                                figure_merge.add_trace(go.Scatter(x = BVP_labeled['datetime'], y = BVP_labeled["BVP"], line = dict(color = "purple"), name = "Raw Blood Volume Pressure (BVP)"))
+                                
+                                MOS_ymin_list.append(BVP_labeled['BVP'].min())
+                                MOS_ymax_list.append(BVP_labeled['BVP'].max())
 
 
-                        if checkboxBVPfiltered:
-                            figure_merge.add_trace(go.Scatter(x = BVP_preprocessed['datetime'], y = BVP_preprocessed["BVP_filtered"], line = dict(color = "firebrick"), name = "Filtered Blood Volume Pressure (BVP)"))
+                            if checkboxBVPfiltered:
+                                figure_merge.add_trace(go.Scatter(x = BVP_preprocessed['datetime'], y = BVP_preprocessed["BVP_filtered"], line = dict(color = "firebrick"), name = "Filtered Blood Volume Pressure (BVP)"))
+                                
+                                MOS_ymin_list.append(BVP_preprocessed['BVP_filtered'].min())
+                                MOS_ymax_list.append(BVP_preprocessed['BVP_filtered'].max())
+
+
+                        if checkboxEDA:
+                            if checkboxEDAraw:
+                                figure_merge.add_trace(go.Scatter(x = EDA_labeled['datetime'], y = EDA_labeled["EDA"], line = dict(color = "blue"), name = "Raw Electrodermal Activity (EDA) in mircoSiemens"))
+                                
+                                MOS_ymin_list.append(EDA_labeled['EDA'].min())
+                                MOS_ymax_list.append(EDA_labeled['EDA'].max())
+
+
+                            if checkboxEDAfiltered:
+                                figure_merge.add_trace(go.Scatter(x = EDA_preprocessed['datetime'], y = EDA_preprocessed["EDA_filtered"], line = dict(color = "blue"), name = "Filtered Electrodermal Activity (EDA) in mircoSiemens"))
+
+                                MOS_ymin_list.append(EDA_preprocessed['EDA_filtered'].min())
+                                MOS_ymax_list.append(EDA_preprocessed['EDA_filtered'].max())
+
+
+                        if checkboxHR:
+                            figure_merge.add_trace(go.Scatter(x = HR_labeled['datetime'], y = HR_labeled["HR"], line = dict(color = "red"), name = "Heart Rate (HR) in BPM"))
                             
-                            MOS_ymin_list.append(BVP_preprocessed['BVP_filtered'].min())
-                            MOS_ymax_list.append(BVP_preprocessed['BVP_filtered'].max())
+                            MOS_ymin_list.append(HR_labeled['HR'].min())
+                            MOS_ymax_list.append(HR_labeled['HR'].max())
 
 
-                    if checkboxEDA:
-                        if checkboxEDAraw:
-                            figure_merge.add_trace(go.Scatter(x = EDA_labeled['datetime'], y = EDA_labeled["EDA"], line = dict(color = "blue"), name = "Raw Electrodermal Activity (EDA) in mircoSiemens"))
+                        if checkboxIBI:
+                            dataframe_merge = pd.merge(dataframe_merge, IBI_labeled[["IBI", "datetime"]], left_on="datetime", right_on="datetime", how="left")
+                        
+                            figure_merge.add_trace(go.Scatter(x = IBI_labeled['datetime'], y = IBI_labeled["IBI"], line = dict(color = "green"), name = "Interbeat Interval (IBI) in Seconds"))
                             
-                            MOS_ymin_list.append(EDA_labeled['EDA'].min())
-                            MOS_ymax_list.append(EDA_labeled['EDA'].max())
+                            MOS_ymin_list.append(IBI_labeled['IBI'].min())
+                            MOS_ymax_list.append(IBI_labeled['IBI'].max())
 
 
-                        if checkboxEDAfiltered:
-                            figure_merge.add_trace(go.Scatter(x = EDA_preprocessed['datetime'], y = EDA_preprocessed["EDA_filtered"], line = dict(color = "blue"), name = "Filtered Electrodermal Activity (EDA) in mircoSiemens"))
-
-                            MOS_ymin_list.append(EDA_preprocessed['EDA_filtered'].min())
-                            MOS_ymax_list.append(EDA_preprocessed['EDA_filtered'].max())
-
-
-                    if checkboxHR:
-                        figure_merge.add_trace(go.Scatter(x = HR_labeled['datetime'], y = HR_labeled["HR"], line = dict(color = "red"), name = "Heart Rate (HR) in BPM"))
+                            if checkboxHRV:
+                                dataframe_merge = pd.merge(dataframe_merge, HRV_labeled[["HRV", "datetime"]], left_on="datetime", right_on="datetime", how="left")
                         
-                        MOS_ymin_list.append(HR_labeled['HR'].min())
-                        MOS_ymax_list.append(HR_labeled['HR'].max())
+                                figure_merge.add_trace(go.Scatter(x = HRV_labeled['datetime'], y = HRV_labeled["HRV"], line = dict(color = "red"), name = "Heart Rate Variability (HRV) in Seconds"))
 
-
-                    if checkboxIBI:
-                        figure_merge.add_trace(go.Scatter(x = IBI_labeled['datetime'], y = IBI_labeled["IBI"], line = dict(color = "green"), name = "Interbeat Interval (IBI) in Seconds"))
+                                MOS_ymin_list.append(HRV_labeled['HRV'].min())
+                                MOS_ymax_list.append(HRV_labeled['HRV'].max())
                         
-                        MOS_ymin_list.append(IBI_labeled['IBI'].min())
-                        MOS_ymax_list.append(IBI_labeled['IBI'].max())
-
-
-                        if checkboxHRV:
-                            figure_merge.add_trace(go.Scatter(x = HRV_labeled['datetime'], y = HRV_labeled["HRV"], line = dict(color = "red"), name = "Heart Rate Variability (HRV) in Seconds"))
-
-                            MOS_ymin_list.append(HRV_labeled['HRV'].min())
-                            MOS_ymax_list.append(HRV_labeled['HRV'].max())
-                    
-                    #assigning the Y-axis min and max values
-                    dmin = min(MOS_ymin_list)
-                    dmax = max(MOS_ymax_list)
-                    
-                    #computes the MOS by timedate in data and plots it
-                    if checkboxST:
-                        labels = ST_labeled[~ST_labeled["Vorgang"].isna()]
+                        #assigning the Y-axis min and max values
+                        dmin = min(MOS_ymin_list)
+                        dmax = max(MOS_ymax_list)
                         
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [ST_labeled['datetime'][index], ST_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {ST_labeled['Vorgang'][index]}"))
+                        #computes the MOS by timedate in data and plots it
+                        if checkboxST:
+                            labels = ST_labeled[~ST_labeled["Vorgang"].isna()]
+                            
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [ST_labeled['datetime'][index], ST_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {ST_labeled['Vorgang'][index]}"))
+                            
+                        elif checkboxACC:
+                            labels = ACC_labeled[~ACC_labeled["Vorgang"].isna()]
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [ACC_labeled['datetime'][index], ACC_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {ACC_labeled['Vorgang'][index]}"))
                         
-                    elif checkboxACC:
-                        labels = ACC_labeled[~ACC_labeled["Vorgang"].isna()]
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [ACC_labeled['datetime'][index], ACC_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {ACC_labeled['Vorgang'][index]}"))
-                    
-                    elif checkboxBVP:
-                        labels = BVP_labeled[~BVP_labeled["Vorgang"].isna()]
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [BVP_labeled['datetime'][index], BVP_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {BVP_labeled['Vorgang'][index]}"))
+                        elif checkboxBVP:
+                            labels = BVP_labeled[~BVP_labeled["Vorgang"].isna()]
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [BVP_labeled['datetime'][index], BVP_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {BVP_labeled['Vorgang'][index]}"))
 
-                    elif checkboxEDA:
-                        labels = EDA_labeled[~EDA_labeled["Vorgang"].isna()]
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [EDA_labeled['datetime'][index], EDA_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {EDA_labeled['Vorgang'][index]}"))
-                    
-                    elif checkboxHR:
-                        labels = HR_labeled[~HR_labeled["Vorgang"].isna()]
-
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [HR_labeled['datetime'][index], HR_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {HR_labeled['Vorgang'][index]}"))
-
-                    elif checkboxIBI:
-                        labels = IBI_labeled[~IBI_labeled["Vorgang"].isna()]
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [IBI_labeled['datetime'][index], IBI_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {IBI_labeled['Vorgang'][index]}"))
-
-                    elif checkboxHRV:
-                        labels = HRV_labeled[~HRV_labeled["Vorgang"].isna()]
-                        for index in labels.index:
-                            figure_merge.add_trace(go.Scatter(x = [HRV_labeled['datetime'][index], HRV_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {HRV_labeled['Vorgang'][index]}")) # 
+                        elif checkboxEDA:
+                            labels = EDA_labeled[~EDA_labeled["Vorgang"].isna()]
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [EDA_labeled['datetime'][index], EDA_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {EDA_labeled['Vorgang'][index]}"))
                         
+                        elif checkboxHR:
+                            labels = HR_labeled[~HR_labeled["Vorgang"].isna()]
 
-                    
-                    st.markdown("---")
-                    st.subheader("Combined signals:")
-                    #plots all the merged signals that were given
-                    st.plotly_chart(figure_merge, use_container_width=True)
-                    
-                    #print("Min list: ", MOS_ymin_list)
-                    #print("Max list: ", MOS_ymax_list)
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [HR_labeled['datetime'][index], HR_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {HR_labeled['Vorgang'][index]}"))
 
-                    #print ("\nMin value: ", min(MOS_ymin_list))
-                    #print ("Max value: ", max(MOS_ymax_list))
+                        elif checkboxIBI:
+                            labels = IBI_labeled[~IBI_labeled["Vorgang"].isna()]
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [IBI_labeled['datetime'][index], IBI_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {IBI_labeled['Vorgang'][index]}"))
+
+                        elif checkboxHRV:
+                            labels = HRV_labeled[~HRV_labeled["Vorgang"].isna()]
+                            for index in labels.index:
+                                figure_merge.add_trace(go.Scatter(x = [HRV_labeled['datetime'][index], HRV_labeled['datetime'][index] ], y = [dmin, dmax], mode = "lines", line = dict(color = 'black'), name = f"Stress section {HRV_labeled['Vorgang'][index]}")) # 
                     
-                except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
-                    print("\nRng{}: Something went wrong in the Apply_merge section".format(
-                    random.randint(0, 50)))
-                    st.error("Cannot apply merge function. Either selected signal does not exist or try to select more than 1 existing signal")   
-                 
-        
+                        
+                        st.markdown("---")
+                        st.subheader("Combined signals:")
+                        #plots all the merged signals that were given
+                        checkboxGenerateMOS = st.checkbox("Generate MOS")
+                        #st.plotly_chart(figure_merge, use_container_width=True)
+                        
+                        if checkboxGenerateMOS:
+
+                            #Prepare EDA (i.e. GSR) for MOS generation
+                            EDA_labeled_MOS = e4at.merge_data(signal_path = os.path.join(individual_signal_path + "/EDA.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "EDA")
+                            EDA_labeled_MOS = EDA_labeled_MOS[(EDA_labeled_MOS['datetime'] >= start_time) & (EDA_labeled_MOS['datetime'] <= end_time)]
+                            EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_MOS)
+
+                            #Prepare ST for MOS generation
+                            ST_labeled_MOS = merge_data(signal_path = os.path.join(individual_signal_path + "/TEMP.csv"),
+                                        labels_path = os.path.join(individual_signal_path + "/ZeitenauswertungEmpaticaPat{}.xlsx".format(pat_number_code)),
+                                        signal = "ST")
+                            ST_labeled_MOS = ST_labeled_MOS[(ST_labeled_MOS['datetime'] >= start_time) & (ST_labeled_MOS['datetime'] <= end_time)] 
+                            ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
+
+                            #fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
+                            join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS, ST_preprocessed_MOS[["ST", "ST_filtered", "datetime"]], left_on="datetime", right_on="datetime", how="left")
+                            join_GSR_ST_MOS.rename(columns={'datetime': 'time_iso', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR', 'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
+                            join_GSR_ST_MOS = join_GSR_ST_MOS.drop(["date", "time", "Vorgang", "Uhrzeit", "Anmerkung"], axis=1)
+                            join_GSR_ST_MOS['TimeNum'] = join_GSR_ST_MOS["time_iso"].map(pd.Timestamp.timestamp)
+                            final_MOS_output, extended_MOS_output, mos_identified = mrp.MOS_main_df(df=join_GSR_ST_MOS)
+
+                            #plotting vertical lines to the existing merged signals plot
+                            MOS_figure = add_groundtruth_mos(figure_merge, final_MOS_output)
+                            st.plotly_chart(MOS_figure, use_container_width=True)
+                            st.write("Number of MOS detected based on ST & GSR rules: **{}**".format(mos_identified))
+                        else:
+                            st.plotly_chart(figure_merge, use_container_width=True)
+                        #print("Min list: ", MOS_ymin_list)
+                        #print("Max list: ", MOS_ymax_list)
+
+                        #print ("\nMin value: ", min(MOS_ymin_list))
+                        #print ("Max value: ", max(MOS_ymax_list))
+
+                    #apply merge signal clause   
+                    except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
+                        print("\nRng{}: Something went wrong in the Apply_merge section".format(
+                        random.randint(0, 50)))
+                        st.error("Cannot apply merge function. Either selected signal does not exist or try to select more than 1 existing signal")   
+    #                
+            #signal processing clause
+            except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
+                    print("\nRng{}: Something went wrong in the checkbox section".format(
+                        random.randint(0, 50)))
+      
+        #zipped file uploader clause
         except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
-                print("\nRng{}: Something went wrong in the checkbox section".format(
-                    random.randint(0, 50)))
-                    
+            print("\nRng{}: Unable to process your request ! Something wrong in the SALK E4 zip file section".format(
+                random.randint(0, 50)))
+        finally:
+            #removes the .zip file when saved locally
+            os.remove(os.path.join(path, uploaded_E4_zip_folder.name))
+
+    else:
+        print("Delete working directory files initialized")
+        #access the current working directory and delte files
+        store_directory = os.getcwd()
+        files_wd_csv = [file for file in os.listdir(store_directory)]
+        
+        #st.info(f"All csv files in the WD: {files_wd_csv}")
+        print("\nWorking files: ")
+        # remove temporarily stored files (.csv, .xlsx, etc.)
+        for file in files_wd_csv:
+            path_to_file = os.path.join(store_directory, file)
+            print(path_to_file)
+            #os.remove(path_to_file)
+            
+        #os.remove(os.path.join(path, uploaded_data_files.name))
+        
+        files_wd = [f for f in os.listdir(store_directory) if os.path.isfile(f)]
+        st.info(f"All files in the WD after removing temporarily stored files: {files_wd}")
+
+
+
+
+
 #handles the initial streamlit page loading error which relates to multiple loading of st.set_page_config
 except (st.StreamlitAPIException): 
     print("StreamlitAPIException was handled")
