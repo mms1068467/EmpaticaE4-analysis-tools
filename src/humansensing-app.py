@@ -30,6 +30,7 @@ SALK Streamlit -- Version 2.0
 - Set the HRV as an signal independent from IBI
 - Integrated the Generate MOS on combined signals plot.
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Set generated files to delete on closed browser to avoid memory leak issue (commented out for now)
     - ISSUE: loading the same file for 2nd time caches it or something and keeps it deleted
 
@@ -41,6 +42,15 @@ SALK Streamlit -- Version 2.1
 =======
 - 
 >>>>>>> cbbdf35 (added the deleting of temporary files)
+=======
+- Set generated files to delete on closed browser to avoid memory leak issue (going to keep eye on it)
+
+SALK Streamlit -- Version 2.1
+
+- Replace the Generate MOS to a sidebar 
+- Set the streamlit inform to choose 2 or more individual signals before applying the merge function
+
+>>>>>>> bad14e6 (source code for SALK app V 2.1)
 #TODO
 
 
@@ -177,7 +187,7 @@ try:
 
             The app allows users to upload the .zip file containing the individual sensor recordings, and analyze them through a visual inspection.
             """)
-
+    
     global_working_folder_path = None
     # If neccessary, add an users local path in order to use and store the files from the app
     # path = st.text_input("Please enter the path where you want to store the project data INCLUDING a '/' at the end and press Enter (Example: C:/Users/projects/data/)" )
@@ -204,8 +214,6 @@ try:
             read_zip_files = open_and_extract_zip_pat(path, uploaded_E4_zip_folder)
             st.success("Temporarily saved folder: {} to {}".format(full_file_name, path))
             st.info("Note: please select (and plot) two or more individual signals before merging them.. ")
-            # print("Pathway to Pat.x: ", read_zip_files)
-
             # create a signal path list to access them
             create_csv_xlsx_list = find_all_csv_xslx_files(read_zip_files)
 
@@ -675,10 +683,17 @@ try:
 
                         st.markdown("---")
                         st.subheader("Combined signals:")
+<<<<<<< HEAD
                         # plots all the merged signals that were given
                         checkboxGenerateMOS = st.sidebar.checkbox("Generate MOS")
                         # st.plotly_chart(figure_merge, use_container_width=True)
 
+=======
+                        #plots all the merged signals that were given
+                        checkboxGenerateMOS = st.sidebar.checkbox("Generate MOS")
+                        #st.plotly_chart(figure_merge, use_container_width=True)
+                        
+>>>>>>> bad14e6 (source code for SALK app V 2.1)
                         if checkboxGenerateMOS:
 
                             # Prepare EDA (i.e. GSR) for MOS generation
@@ -830,7 +845,7 @@ try:
                     print(os.path.join(store_directory, unknown))
                     shutil.rmtree(os.path.join(store_directory, unknown))
         except(NotADirectoryError):
-            print("Not a directory found")
+            print("Found an untracked file in the repository")
 
         #st.info(f"All csv files in the WD: {files_wd_csv}")
         #print("\nWorking files: ")
@@ -845,8 +860,12 @@ try:
         #os.remove(os.path.join(path, uploaded_data_files.name))
         
         files_wd = [f for f in os.listdir(store_directory) if os.path.isfile(f)]
+<<<<<<< HEAD
         print(f"All files in the WD after removing temporarily stored files: {files_wd}")
 >>>>>>> cbbdf35 (added the deleting of temporary files)
+=======
+        #print(f"All files in the WD after removing temporarily stored files: {files_wd}")
+>>>>>>> bad14e6 (source code for SALK app V 2.1)
 
 
 
