@@ -18,13 +18,18 @@ SALK Streamlit -- Version 1.0
 SALK Streamlit -- Version 2.0
 
 ####WARNING: DO NOT ADD ANY NEW FOLDERS TO THE SRC DIRECTORY BEFORE ADDING IT TO THE
+<<<<<<< HEAD
             known_files_list LIST OR IT WILL BE DELETED AFTER THE APP IS CLOSED OR
+=======
+            known_files_list LIST OR IT WILL BE DELETED AFTER THE APP IS CLOSED OR 
+>>>>>>> cbbdf35 (added the deleting of temporary files)
             UPLOADED FILE REMOVED
 
 - Integrated the butterworth filter for available individual signals (ST, BVP and EDA)
 - Integrated the signal time range filter
 - Set the HRV as an signal independent from IBI
 - Integrated the Generate MOS on combined signals plot.
+<<<<<<< HEAD
 - Set generated files to delete on closed browser to avoid memory leak issue (commented out for now)
     - ISSUE: loading the same file for 2nd time caches it or something and keeps it deleted
 
@@ -33,6 +38,9 @@ SALK Streamlit -- Version 2.1
 - Replace the Generate MOS to a sidebar
 - Set the streamlit inform to choose 2 or more individual signals before applying the merge function
 
+=======
+- 
+>>>>>>> cbbdf35 (added the deleting of temporary files)
 #TODO
 
 
@@ -106,7 +114,7 @@ try:
 
         return fig
 
-
+    
     #### Caching the plot functions to (slightly) increase performance
     @st.cache
     def merge_data(signal_path, labels_path, signal):
@@ -147,7 +155,7 @@ try:
 
         return find_csv_xslx
 
-
+    
     #### Page setup
 
     st.set_page_config(
@@ -193,7 +201,6 @@ try:
             full_file_name = uploaded_E4_zip_folder.name.split(".")[0] + "." + uploaded_E4_zip_folder.name.split(".")[1]
             saved_folder_path = str(path) + "\\" + full_file_name
             global_working_folder_path = saved_folder_path
-            # read and extract files from zip to create a list
             read_zip_files = open_and_extract_zip_pat(path, uploaded_E4_zip_folder)
             st.success("Temporarily saved folder: {} to {}".format(full_file_name, path))
             st.info("Note: please select (and plot) two or more individual signals before merging them.. ")
@@ -723,6 +730,7 @@ try:
                     except (
                     ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
                         print("\nRng{}: Something went wrong in the Apply_merge section".format(
+<<<<<<< HEAD
                             random.randint(0, 50)))
                         st.error(
                             "Cannot apply merge function. Either selected signal does not exist or try to select more than 1 existing signal")
@@ -737,6 +745,21 @@ try:
 
 
         # zipped file uploader clause
+=======
+                        random.randint(0, 50)))
+                        st.error("Cannot apply merge function. Either selected signal does not exist or try to select more than 1 existing signal")   
+                    
+            #signal processing clause
+            except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
+                    print("\nRng{}: Something went wrong in the checkbox section".format(
+                        random.randint(0, 50)))
+            
+        
+       
+        
+        
+        #zipped file uploader clause
+>>>>>>> cbbdf35 (added the deleting of temporary files)
         except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
             print("\nRng{}: Unable to process your request ! Something wrong in the SALK E4 zip file section".format(
                 random.randint(0, 50)))
@@ -744,6 +767,7 @@ try:
             # removes the .zip file when saved locally
             os.remove(os.path.join(path, uploaded_E4_zip_folder.name))
 
+<<<<<<< HEAD
     # elif uploaded_E4_zip_folder is None:
     #    try:
     #        print("\nDelete working directory files initialized")
@@ -782,6 +806,47 @@ try:
 
     #    files_wd = [f for f in os.listdir(store_directory) if os.path.isfile(f)]
     # print(f"All files in the WD after removing temporarily stored files: {files_wd}")
+=======
+    elif uploaded_E4_zip_folder is None:
+        try:
+            print("\nDelete working directory files initialized")
+            #access the current working directory and delte files
+            store_directory = os.getcwd()
+            files_wd_csv = [file for file in os.listdir(store_directory)]
+            
+            known_files_list = ["E4_Analysis_tools.py", "humansensing-app-main-branch.py", 
+                                "humansensing-app.py", "HumanSensing_Preprocessing", 
+                                "HumanSensing_Visualization", "MOS_Detection", 
+                                "requirements3.txt", "SALK_analysis_notebook.ipynb", 
+                                "__init__.py", "__pycache__"]
+            
+            #compare two directories and return unknown files to us
+            print("Unknown files: ")
+            unknown_files_list = [x for x in files_wd_csv if x not in known_files_list]
+            #print(unknown_files_list)
+            if len(unknown_files_list) > 0:
+                for unknown in unknown_files_list:
+                    
+                    print(os.path.join(store_directory, unknown))
+                    shutil.rmtree(os.path.join(store_directory, unknown))
+        except(NotADirectoryError):
+            print("Not a directory found")
+
+        #st.info(f"All csv files in the WD: {files_wd_csv}")
+        #print("\nWorking files: ")
+        # remove temporarily stored files (.csv, .xlsx, etc.)
+        
+
+            #create a list of files known to us, if there is an intruder, delete it!
+            #if file == saved_folder_path:
+            #    print("Yes it is")
+            #os.remove(path_to_file)
+            
+        #os.remove(os.path.join(path, uploaded_data_files.name))
+        
+        files_wd = [f for f in os.listdir(store_directory) if os.path.isfile(f)]
+        print(f"All files in the WD after removing temporarily stored files: {files_wd}")
+>>>>>>> cbbdf35 (added the deleting of temporary files)
 
 
 
