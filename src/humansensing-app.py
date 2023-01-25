@@ -31,6 +31,7 @@ SALK Streamlit -- Version 2.0
 - Integrated the Generate MOS on combined signals plot.
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 - Set generated files to delete on closed browser to avoid memory leak issue (commented out for now)
     - ISSUE: loading the same file for 2nd time caches it or something and keeps it deleted
 
@@ -44,6 +45,10 @@ SALK Streamlit -- Version 2.1
 >>>>>>> cbbdf35 (added the deleting of temporary files)
 =======
 - Set generated files to delete on closed browser to avoid memory leak issue (going to keep eye on it)
+=======
+- Set generated files to delete on closed browser to avoid memory leak issue (commented out for now)
+    - ISSUE: loading the same file for 2nd time caches it or something and keeps it deleted
+>>>>>>> 0c4647b (source code for SALK app V 2.1)
 
 SALK Streamlit -- Version 2.1
 
@@ -783,12 +788,17 @@ try:
             os.remove(os.path.join(path, uploaded_E4_zip_folder.name))
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     # elif uploaded_E4_zip_folder is None:
+=======
+    #elif uploaded_E4_zip_folder is None:
+>>>>>>> 0c4647b (source code for SALK app V 2.1)
     #    try:
     #        print("\nDelete working directory files initialized")
     #        #access the current working directory and delte files
     #        store_directory = os.getcwd()
     #        files_wd_csv = [file for file in os.listdir(store_directory)]
+<<<<<<< HEAD
     #
     #        known_files_list = ["E4_Analysis_tools.py", "humansensing-app-main-branch.py",
     #                            "humansensing-app.py", "HumanSensing_Preprocessing",
@@ -796,17 +806,31 @@ try:
     #                            "requirements3.txt", "SALK_analysis_notebook.ipynb",
     #                            "__init__.py", "__pycache__"]
     #
+=======
+    #        
+    #        known_files_list = ["E4_Analysis_tools.py", "humansensing-app-main-branch.py", 
+    #                            "humansensing-app.py", "HumanSensing_Preprocessing", 
+    #                            "HumanSensing_Visualization", "MOS_Detection", 
+    #                            "requirements3.txt", "SALK_analysis_notebook.ipynb", 
+    #                            "__init__.py", "__pycache__"]
+    #        
+>>>>>>> 0c4647b (source code for SALK app V 2.1)
     #        #compare two directories and return unknown files to us
     #        print("Unknown files: ")
     #        unknown_files_list = [x for x in files_wd_csv if x not in known_files_list]
     #        #print(unknown_files_list)
     #        if len(unknown_files_list) > 0:
     #            for unknown in unknown_files_list:
+<<<<<<< HEAD
     #
+=======
+    #                
+>>>>>>> 0c4647b (source code for SALK app V 2.1)
     #                print(os.path.join(store_directory, unknown))
     #                shutil.rmtree(os.path.join(store_directory, unknown))
     #    except(NotADirectoryError):
     #        print("Found an untracked file in the repository")
+<<<<<<< HEAD
 
     # st.info(f"All csv files in the WD: {files_wd_csv}")
     # print("\nWorking files: ")
@@ -846,6 +870,8 @@ try:
                     shutil.rmtree(os.path.join(store_directory, unknown))
         except(NotADirectoryError):
             print("Found an untracked file in the repository")
+=======
+>>>>>>> 0c4647b (source code for SALK app V 2.1)
 
         #st.info(f"All csv files in the WD: {files_wd_csv}")
         #print("\nWorking files: ")
@@ -858,17 +884,9 @@ try:
             #os.remove(path_to_file)
             
         #os.remove(os.path.join(path, uploaded_data_files.name))
-        
-        files_wd = [f for f in os.listdir(store_directory) if os.path.isfile(f)]
-<<<<<<< HEAD
-        print(f"All files in the WD after removing temporarily stored files: {files_wd}")
->>>>>>> cbbdf35 (added the deleting of temporary files)
-=======
+
+    #    files_wd = [f for f in os.listdir(store_directory) if os.path.isfile(f)]
         #print(f"All files in the WD after removing temporarily stored files: {files_wd}")
->>>>>>> bad14e6 (source code for SALK app V 2.1)
-
-
-
 
 
 # handles the initial streamlit page loading error which relates to multiple loading of st.set_page_config
