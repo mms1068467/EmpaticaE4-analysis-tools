@@ -223,7 +223,8 @@ try:
             create_csv_xlsx_list = find_all_csv_xslx_files(read_zip_files)
 
             # fetch signal directory path and pat number
-            individual_signal_path = create_csv_xlsx_list[0].rsplit("\\", 1)[0]
+            #individual_signal_path = create_csv_xlsx_list[0].rsplit("\\", 1)[0]
+            individual_signal_path = os.path.join(read_zip_files, read_zip_files.split('\\')[-1])
             pat_number_code = individual_signal_path.split("/")[-1].split(".")[-1]
 
             # print("Individual path", individual_signal_path)
