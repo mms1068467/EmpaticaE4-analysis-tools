@@ -21,6 +21,8 @@ from MOS_Detection import MOS_signal_preparation_verified as msp_new
 import MOS_Detection.MOS_rules_NEW as MOS_paper_new
 from HumanSensing_Preprocessing import utilities
 
+
+
 # temporarily saves the file
 def save_uploadedfile(uploaded_file, path: str):
     with open(os.path.join(path, uploaded_file.name), "wb") as f:
@@ -81,7 +83,7 @@ def find_all_csv_xslx_files(folder_path: str) -> list:
     return csv_xslx_files
 
 
-st.markdown("# Drag and drop a zip file containing multiple candidates and begin Stress Analysis")
+st.markdown("# Drag and drop a zip file containing multiple candidates (zipped) and begin Stress Analysis")
 
 global_working_folder_path = None
 # If neccessary, add an users local path in order to use and store the files from the app
@@ -93,86 +95,88 @@ uploaded_E4_zip_folder = st.file_uploader("Drag and drop your SALK E4 zip folder
 
 #### Main, branching part of the application as soon as the zip is uploaded
 if uploaded_E4_zip_folder is not None:
+
+    st.sidebar.title("Choose Stress Detection Algorithm to apply:")
+
+    kyriakou2019 = st.sidebar.checkbox(
+        "MOS Algorithm - Kyriakou et al. (2019)")
+
+    moser2023 = st.sidebar.checkbox("Individual-oriented MOS Algorithm - Moser et al. (2023)")
+
     try:
 
-        eda_file_list = []
+        if kyriakou2019:
 
-        filename = uploaded_E4_zip_folder.name
-        filetype = uploaded_E4_zip_folder.type
+            st.header("Stress Detection Output - Kyriakou et al. 2019")
 
-        #st.write("File name is ", filename)
-        #st.write("File type is ", filetype)
+            kyriakou_MOS_outputs = []
 
-        if filename.endswith(".zip"):
+            eda_file_list = []
 
-            #st.write("ID is: ", filename.split(".zip")[0])
-            folderID = filename.split(".zip")[0]
+            filename = uploaded_E4_zip_folder.name
+            filetype = uploaded_E4_zip_folder.type
 
-            #st.write(uploaded_E4_zip_folder)
+            #st.write("File name is ", filename)
+            #st.write("File type is ", filetype)
 
-            with zipfile.ZipFile(uploaded_E4_zip_folder, 'r') as zipObj:
-                # extract all content of zip file in current directory
-                list_of_files = zipObj.namelist()
+            if filename.endswith(".zip"):
 
-                zipObj.extractall(path)
+                #st.write("ID is: ", filename.split(".zip")[0])
+                folderID = filename.split(".zip")[0]
 
-                for fl in list_of_files:
-                    subfolder_path = Path.joinpath(path, fl)
+                #st.write(uploaded_E4_zip_folder)
 
-                    #st.write("File Name: ", subfolder_path.split(".zip")[0])
+                with zipfile.ZipFile(uploaded_E4_zip_folder, 'r') as zipObj:
+                    # extract all content of zip file in current directory
+                    list_of_files = zipObj.namelist()
 
+                    zipObj.extractall(path)
 
-                    with zipfile.ZipFile(subfolder_path, 'r') as zipO:
-                        file_ls = zipO.namelist()
+                    for fl in list_of_files:
+                        subfolder_path = Path.joinpath(path, fl)
 
-                        zipO.extractall(path)
-
-                        #st.write(Path.joinpath(path, file_ls))
-                        patID = file_ls[0].split("/")[0]
+                        #st.write("File Name: ", subfolder_path.split(".zip")[0])
 
 
+                        with zipfile.ZipFile(subfolder_path, 'r') as zipO:
+                            file_ls = zipO.namelist()
 
-                        for filen in file_ls:
-                            if 'EDA' in filen and 'MACOSX' not in filen:
-                                path_to_EDA_file = Path.joinpath(path, filen)
-                                #st.write("Path to the EDA file is: ", path_to_EDA_file)
+                            zipO.extractall(path)
 
-                                patientPath = Path.joinpath(path, filen.split("/")[0])
+                            #st.write(Path.joinpath(path, file_ls))
+                            patID = file_ls[0].split("/")[0]
 
-                                #st.write("Path to Patient is patientPath", patientPath)
 
-                                patientNr = fl.split(".")[1]
 
-                                #st.write("Path to EDA file: ", Path.joinpath(patientPath, "EDA.csv"))
-                                #st.write("Path to Auswertungsfile file: ", Path.joinpath(
-                                #        patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                #            patientNr)))
+                            for filen in file_ls:
+                                if 'EDA' in filen and 'MACOSX' not in filen:
+                                    path_to_EDA_file = Path.joinpath(path, filen)
+                                    #st.write("Path to the EDA file is: ", path_to_EDA_file)
 
-                                EDA_labeled_date_extract = merge_data(
-                                    signal_path=Path.joinpath(patientPath, "EDA.csv"),
-                                    labels_path=Path.joinpath(
-                                        patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                            patientNr)),
-                                    signal="EDA")
+                                    patientPath = Path.joinpath(path, filen.split("/")[0])
 
-                                EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
+                                    #st.write("Path to Patient is patientPath", patientPath)
 
-                                EDA_labeled_date_extract["ID"] = patID
-                                st.write(EDA_labeled_date_extract)
+                                    patientNr = fl.split(".")[1]
 
-                                #initial_start_time = EDA_labeled_date_extract['datetime'].min()
-                                #initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
+                                    st.write("Patient Number:", patientNr)
 
-                                kyriakou2019 = st.sidebar.checkbox(
-                                    "MOS Algorithm according to Kyriakou et al. (2019)")
+                                    #st.write("Path to EDA file: ", Path.joinpath(patientPath, "EDA.csv"))
+                                    #st.write("Path to Auswertungsfile file: ", Path.joinpath(
+                                    #        patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                    #            patientNr)))
 
-                                moser2023 = st.sidebar.checkbox("Individual-oriented MOS Algorithm (new)")
+                                    EDA_labeled_date_extract = merge_data(
+                                        signal_path=Path.joinpath(patientPath, "EDA.csv"),
+                                        labels_path=Path.joinpath(
+                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                patientNr)),
+                                        signal="EDA")
 
-                                if kyriakou2019:
+                                    EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
 
-                                    EDA_data_MOS = EDA_labeled_date_extract.copy()
-
-                                    #EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_data_MOS)
+                                    EDA_labeled_date_extract["ID"] = patID
+                                    #st.write(EDA_labeled_date_extract)
 
                                     # Prepare ST for MOS generation
                                     ST_labeled_MOS = merge_data(
@@ -184,39 +188,285 @@ if uploaded_E4_zip_folder is not None:
 
                                     ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
 
-                                    #st.write(ST_preprocessed_MOS)
+                                    ST_preprocessed_MOS["ID"] = patID
 
                                     # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
                                     join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
                                                                ST_preprocessed_MOS[["ST", "ST_filtered", "datetime"]],
                                                                left_on="datetime", right_on="datetime", how="left")
 
+                                    #st.write("Joined GSR and ST MOS Data", join_GSR_ST_MOS)
+
+
                                     join_GSR_ST_MOS.rename(
-                                        columns={'datetime': 'time_iso', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
+                                        columns={'datetime': 'time_iso', 'time': 'time_unix', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
                                                  'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
 
-                                    #st.write(join_GSR_ST_MOS)
+                                    SALK_info = join_GSR_ST_MOS[["time_iso", "ID", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
 
-                                    join_GSR_ST_MOS = join_GSR_ST_MOS.drop(
-                                        ["date", "time", "Vorgang", "Uhrzeit", "Anmerkung"],
-                                        axis=1)
+                                    #join_GSR_ST_MOS = join_GSR_ST_MOS.drop(
+                                    #    ["date", "time", "Vorgang", "Uhrzeit", "Anmerkung"],
+                                    #   axis=1)
+
 
                                     join_GSR_ST_MOS['TimeNum'] = join_GSR_ST_MOS["time_iso"].map(pd.Timestamp.timestamp)
 
-                                    #st.write("Joined MOS Detection Input", join_GSR_ST_MOS)
 
-                                    final_MOS_output, extended_MOS_output, mos_identified = mrp.MOS_main_df(
+                                    #st.write(join_GSR_ST_MOS)
+
+                                    #st.write("Kyriakou et al. MOS Input Data", join_GSR_ST_MOS)
+
+                                    final_MOS_output, extended_MOS_output, mos_identified = mrp.MOS_main_df_SALK(
                                         df=join_GSR_ST_MOS)
 
+                                    st.write("Length of data", len(final_MOS_output))
 
-                                    st.write("MOS Output")
+                                    st.write("Number of MOS Detected: ", mos_identified)
+
+                                    #st.write(len(final_MOS_output[final_MOS_output["detectedMOS"] == 1]))
+
+                                    #st.write("Kyriakou et al. MOS Ouptut", final_MOS_output)
+
+                                    #st.write("Extended Output: ", extended_MOS_output)
+
+                                    # TODO -- rename columns here: GSR_filtered = EDA, ST_filtered = ST, MOS_score = MOS_Score
+
+                                    #st.write(final_MOS_output)
+                                    MOS_output_renamed = final_MOS_output.rename(
+                                        columns={'GSR_filtered': 'EDA',
+                                                 'ST_filtered': 'ST',
+                                                 'MOS_score': 'MOS_Score'})
+
+                                    #st.write(MOS_output_renamed)
+                                    MOS_output_renamed_rel = MOS_output_renamed[
+                                                 ["time_iso", "ID", "Vorgang", "Uhrzeit", "Anmerkung", "TimeNum", "EDA", "ST", "MOS_Score",
+                                                  "detectedMOS"]]
+
+                                    #st.write(MOS_output_renamed[
+                                    #             ["time_iso", "ID", "Vorgang", "Uhrzeit", "Anmerkung", "TimeNum", "EDA", "ST", "MOS_Score",
+                                    #              "detectedMOS"]])
+
+                                    kyriakou_MOS_outputs.append(MOS_output_renamed_rel)
 
 
-                                if moser2023:
-                                    pass
+                                #initial_start_time = EDA_labeled_date_extract['datetime'].min()
+                                #initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
+
+            combined_MOS_kyriakou = pd.concat(kyriakou_MOS_outputs)
+            st.write("Length of combined MOS Outputs", len(combined_MOS_kyriakou))
+            st.write(combined_MOS_kyriakou)
+            overall_mos_nr_kyriakou = len(combined_MOS_kyriakou[combined_MOS_kyriakou["detectedMOS"] == 1])
+            st.write("Overall Number of MOS Detected: ", overall_mos_nr_kyriakou)
 
 
-                                # TODO -- perform Stress Detection here
+
+        if moser2023:
+
+            st.header("Stress Detection Output - Moser et al. 2023")
+
+            moser_MOS_outputs = []
+
+            start_time_trim = st.number_input(
+                "Number of seconds to trim from start (transient phase) - excluded from the baseline calculation (default = 3 minutes)",
+                value=180)
+            end_time_trim = st.number_input(
+                "Number of seconds to trim from end (when person took off sensor) - excluded from the baseline calculation (default = 30 seconds)",
+                value=30)
+
+            MOS_thresh = st.number_input("Please enter the desired MOS threshold: ", value=0.75)
+
+
+            eda_file_list = []
+
+            filename = uploaded_E4_zip_folder.name
+            filetype = uploaded_E4_zip_folder.type
+
+            # st.write("File name is ", filename)
+            # st.write("File type is ", filetype)
+
+            if filename.endswith(".zip"):
+
+                # st.write("ID is: ", filename.split(".zip")[0])
+                folderID = filename.split(".zip")[0]
+
+                # st.write(uploaded_E4_zip_folder)
+
+                with zipfile.ZipFile(uploaded_E4_zip_folder, 'r') as zipObj:
+                    # extract all content of zip file in current directory
+                    list_of_files = zipObj.namelist()
+
+                    zipObj.extractall(path)
+
+                    for fl in list_of_files:
+                        subfolder_path = Path.joinpath(path, fl)
+
+                        # st.write("File Name: ", subfolder_path.split(".zip")[0])
+
+                        with zipfile.ZipFile(subfolder_path, 'r') as zipO:
+                            file_ls = zipO.namelist()
+
+                            zipO.extractall(path)
+
+                            # st.write(Path.joinpath(path, file_ls))
+                            patID = file_ls[0].split("/")[0]
+
+                            for filen in file_ls:
+                                if 'EDA' in filen and 'MACOSX' not in filen:
+                                    path_to_EDA_file = Path.joinpath(path, filen)
+                                    # st.write("Path to the EDA file is: ", path_to_EDA_file)
+
+                                    patientPath = Path.joinpath(path, filen.split("/")[0])
+
+                                    # st.write("Path to Patient is patientPath", patientPath)
+
+                                    patientNr = fl.split(".")[1]
+
+                                    st.write("Patient Number:", patientNr)
+
+                                    # st.write("Path to EDA file: ", Path.joinpath(patientPath, "EDA.csv"))
+                                    # st.write("Path to Auswertungsfile file: ", Path.joinpath(
+                                    #        patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                    #            patientNr)))
+
+                                    EDA_labeled_date_extract = merge_data(
+                                        signal_path=Path.joinpath(patientPath, "EDA.csv"),
+                                        labels_path=Path.joinpath(
+                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                patientNr)),
+                                        signal="EDA")
+
+                                    #st.write(EDA_labeled_date_extract)
+
+                                    initial_start_time = EDA_labeled_date_extract['datetime'].min()
+                                    initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
+
+                                    start_time = initial_start_time + pd.to_timedelta(start_time_trim, "s")
+                                    end_time = initial_end_time - pd.to_timedelta(end_time_trim, "s")
+
+                                    EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
+
+                                    EDA_labeled_date_extract["ID"] = patID
+                                    #st.write(EDA_labeled_date_extract)
+
+                                    # Prepare ST for MOS generation
+                                    ST_labeled_MOS = merge_data(
+                                        signal_path=Path.joinpath(patientPath, "TEMP.csv"),
+                                        labels_path=Path.joinpath(
+                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                patientNr)),
+                                        signal="ST")
+
+                                    #st.write(ST_labeled_MOS)
+
+                                    ##### Time Filtering
+                                    #ST_labeled_MOS = ST_labeled_MOS[
+                                    #    (ST_labeled_MOS['datetime'] >= start_time) & (
+                                    #                ST_labeled_MOS['datetime'] <= end_time)]
+
+                                    ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
+
+                                    # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
+                                    join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
+                                                               ST_preprocessed_MOS[["ST", "ST_filtered", "datetime"]],
+                                                               left_on="datetime", right_on="datetime", how="left")
+                                    join_GSR_ST_MOS.rename(
+                                        columns={'datetime': 'time_iso', 'time': 'time_unix', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
+                                                 'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
+
+                                    SALK_info = join_GSR_ST_MOS[["time_iso", "ID", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
+
+                                    #join_GSR_ST_MOS = join_GSR_ST_MOS.drop(
+                                    #    ["date", "time", "Vorgang", "Uhrzeit", "Anmerkung"],
+                                    #   axis=1)
+
+                                    join_GSR_ST_MOS['TimeNum'] = join_GSR_ST_MOS["time_iso"].map(pd.Timestamp.timestamp)
+
+                                    #st.write(join_GSR_ST_MOS)
+
+                                    data_prep_f1 = msp_new.derive_GSR_and_ST_features(join_GSR_ST_MOS)
+                                    #st.write(data_prep_f1)
+
+                                    # st.write(data_prep_f1)
+
+                                    if "IBI" in data_prep_f1:
+                                        data_ready_f1 = msp_new.derive_IBI_and_HRV_features(join_GSR_ST_MOS)
+                                    # print(data_ready_f1.head())
+                                    else:
+                                        data_ready_f1 = data_prep_f1.copy()
+
+                                    # add features for GSR rules
+                                    data_ready_f11 = MOS_paper_new.GSR_amplitude_duration_slope(data_ready_f1)
+
+                                    # st.write(data_ready_f11.columns)
+
+                                    # TODO - add start_time_trim and end_time_trim values for trimmed baseline calculation as input
+                                    threshold_data = data_ready_f11.set_index("time_iso")[start_time:end_time]
+
+                                    # st.write("Threshold Data", threshold_data)
+
+                                    amplitude_mean = MOS_paper_new.calculate_GSR_ampltiude_baseline(threshold_data)
+                                    amplitude_std = MOS_paper_new.calculate_GSR_ampltiude_spread(threshold_data)
+                                    # st.write(amplitude_mean, amplitude_std)
+                                    duration_mean = MOS_paper_new.calculate_GRS_duration_baseline(threshold_data)
+                                    duration_std = MOS_paper_new.calculate_GRS_duration_spread(threshold_data)
+                                    # st.write(duration_mean, duration_std)
+                                    slope_mean = MOS_paper_new.calculate_GSR_Slope_baseline(threshold_data)
+                                    slope_std = MOS_paper_new.calculate_GSR_Slope_spread(threshold_data)
+
+                                    MOS_out_martin = MOS_paper_new.MOS_rules_apply_n(data_ready_f11,
+                                                                                     amplitude_mean=amplitude_mean,
+                                                                                     amplitude_std=amplitude_std,
+                                                                                     slope_mean=slope_mean,
+                                                                                     slope_std=slope_std,
+                                                                                     MOSpercentage=MOS_thresh)
+
+                                    detected_MOS = MOS_out_martin[MOS_out_martin['MOS_Score'] > MOS_thresh]
+                                    df_GSR_rules_met = utilities.check_timestamp_gaps(detected_MOS, duration=10,
+                                                                                      col_name="MOS_not_within_10_seconds")
+
+                                    mos_identified = df_GSR_rules_met[
+                                        df_GSR_rules_met['MOS_not_within_10_seconds'] == True]
+
+                                    MOS_gsr_and_st_clean = pd.merge(
+                                        MOS_out_martin[MOS_out_martin.columns.difference(["detectedMOS"])],
+                                        mos_identified[['time_iso', "detectedMOS"]],
+                                        on='time_iso', how='left')
+
+                                    MOS_gsr_and_st_clean["detectedMOS"] = MOS_gsr_and_st_clean["detectedMOS"].fillna(0)
+
+                                    #st.write("MOS Subset", MOS_gsr_and_st_clean[MOS_gsr_and_st_clean['detectedMOS'] > 0])
+
+                                    #st.write(MOS_gsr_and_st_clean)
+
+                                    number_of_mos = len(MOS_gsr_and_st_clean[MOS_gsr_and_st_clean['detectedMOS'] > 0])
+
+                                    st.write("Length of data", len(MOS_gsr_and_st_clean))
+
+                                    st.write("Number of MOS Detected: ", number_of_mos)
+
+                                    MOS_output_renamed_moser = MOS_gsr_and_st_clean.rename(
+                                        columns={'GSR': 'EDA'})
+
+                                    MOS_output_renamed_moser_rel = MOS_output_renamed_moser[["time_iso", "ID", "Vorgang", "Uhrzeit", "Anmerkung", "TimeNum", "EDA", "ST", "MOS_Score", "detectedMOS"]]
+
+                                    #st.write("Number of MOS detected based on Moser et al. (2023): **{}**".format(
+                                    #    number_of_mos))
+
+
+                                    # TODO -- rename columns here: GSR = EDA, ST = ST, MOS_Score = MOS_score
+
+
+                                    moser_MOS_outputs.append(MOS_output_renamed_moser_rel)
+
+                                # initial_start_time = EDA_labeled_date_extract['datetime'].min()
+                                # initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
+
+            combined_MOS_moser = pd.concat(moser_MOS_outputs)
+            st.write("Length of combined MOS Outputs", len(combined_MOS_moser))
+            st.write(combined_MOS_moser)
+            overall_mos_nr_moser = len(
+                combined_MOS_moser[combined_MOS_moser["detectedMOS"] == 1])
+            st.write("Overall Number of MOS Detected: ", overall_mos_nr_moser)
 
 
     except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
