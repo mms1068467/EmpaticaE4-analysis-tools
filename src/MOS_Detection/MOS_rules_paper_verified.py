@@ -249,6 +249,123 @@ def MOS_main_df(df,
     return final_MOS_output, data_r1_r2_r3_r4, len(mos_identified)
 
 
+def MOS_main_df_SALK(df,
+                min_GSR_inc_secs: int = 2, max_GSR_inc_secs: int = 8, weight_rule1: int = 25,
+                weight_rule2: int = 20, weight_rule3: int = 0, weight_rule4: int = 55,
+                MOSpercentage: int = 75, latency: int = 10, print_number_of_time_rules_are_met: int = False):
+    # Check if 'time_iso' is in datetime64[ns] format
+    # print(MOS_data_prep.dtypes)
+
+    if "time" in df.columns:
+        df.rename(columns={"time": "time_iso"}, inplace=True)
+
+    data = rule_preparation(df)
+    first_derivative_GSR, first_derivative_ST = ST_GSR_derivative_calculation(data)
+
+    GSR_increase_indicator = calculate_binary_increase_indicator_GSR(first_derivative_GSR)
+    ST_decrease_indicator = calculate_binary_decrease_indicator_ST(first_derivative_ST)
+
+    # create full dataframe for MOS rule check
+    data_r = pd.DataFrame(list(zip(data['time_iso'].values,
+                                   data["ID"].values, data["time_unix"].values, data["date"].values,
+                                   data["Vorgang"].values, data["Uhrzeit"].values, data["Anmerkung"].values,
+                                   data['TimeNum'].values, data['GSR'].values, data['GSR_standardized'],
+                                   GSR_increase_indicator, first_derivative_GSR, data['ST'].values,
+                                   data['ST_standardized'], ST_decrease_indicator, first_derivative_ST)),
+                          columns=['time_iso', 'ID', 'time_unix', 'date', 'Vorgang', 'Uhrzeit', 'Anmerkung',
+                                   'TimeNum', 'GSR_filtered', 'GSR_std', 'GSR_increase', 'GSR_1st_der',
+                                   'ST_filtered', 'ST_std', 'ST_decrease', 'ST_1st_der'])
+
+    #### Rule 1 - GSR Increase Duration ### (2-5 seconds), (5-8 seconds) according to Paper
+    data_r1 = R1_GSR_Amplitude_Increase(data_r, min_GSR_inc_secs=min_GSR_inc_secs,
+                                        max_GSR_inc_secs=max_GSR_inc_secs)
+
+    data_r1["R1"] = data_r1["R1"] * weight_rule1
+
+    # set "GSR Onset" and "GSR Peak" Variables here
+    data_r1["GSR_onset"] = np.where((data_r1['consecutive_GSR_inc'].shift(-1) == 1), 1, 0)
+    data_r1["GSR_peak"] = np.where((data_r1['consecutive_GSR_inc'] >= 1) & (data_r1['GSR_increase'].shift(-1) == 0), 1,
+                                   0)
+
+    ## Create lag for consecutive ST decrease to compare to GSR onset
+    data_r1['ST_3_s_after_GSR'] = np.where((data_r1['GSR_onset'] == 1) & (data_r1['consecutive_ST_dec'].shift(-3) >= 3),
+                                           1, 0)
+    # TODO - remove "ST_precondition" because it is redundant
+    # data_r1["ST_precondition"] = np.where(data_r1["consecutive_ST_dec"] >= 3, 1, 0)
+    data_r1['ST_2-6_s_after_GSR'] = np.where(
+        ((data_r1['GSR_onset'] == 1) & (data_r1['consecutive_ST_dec'].shift(-2) >= 3)) |
+        ((data_r1['GSR_onset'] == 1) & (data_r1['consecutive_ST_dec'].shift(-4) >= 3)) |
+        ((data_r1['GSR_onset'] == 1) & (data_r1['consecutive_ST_dec'].shift(-5) >= 3)) |
+        ((data_r1['GSR_onset'] == 1) & (data_r1['consecutive_ST_dec'].shift(-6) >= 3)), 1, 0)
+
+    #### Rule 2 - ST Decrease of at least 3 seconds 3 seconds or 2-6 seconds after GSR onset (according to paper) ###
+    data_r2 = R2_ST_Decrease_after_GSR_Peak_new(data_r1)
+
+    # print("Columns R2", data_r2.columns)
+
+    data_r2["R2"] = data_r2["R2"] * weight_rule2
+
+    # Rule 3 & Rule 4 Preparation
+    r3, r4, rel_GSR_slope, GSR_slope = R3_4_mos_angle_and_duration(data_r2)
+
+    data_r3_4 = data_r2.copy()
+
+    #### Rule 3 - GSR increase time between local GSR min and local GSR max #### (1-5 seconds), (5-15 seconds) according to Paper
+    data_r3_4['R3'] = r3
+    data_r3_4['R4'] = r4
+    data_r3_4['R3'] = data_r3_4['R3'] * weight_rule3
+    data_r3_4['R4'] = data_r3_4['R4'] * weight_rule4
+    data_r3_4['rel_GSR_slope'] = rel_GSR_slope
+    data_r3_4['GSR_slope'] = GSR_slope
+
+    data_r1_r2_r3_r4 = shift_rules_to_same_position(data_r3_4)
+
+    if print_number_of_time_rules_are_met:
+        print(f"Number of times Rule 1 was met: "
+              f"{len(data_r1_r2_r3_r4[data_r1_r2_r3_r4['R1shifted'] > 0])} \n"
+              f"\t (GSR Increase between 2 and 5 seconds (1) or 5 and 8 seconds (0.5)) \n")
+
+        print(f"Number of times Rule 2  was met: "
+              f"{len(data_r1_r2_r3_r4[data_r1_r2_r3_r4['R2'] > 0])} \n"
+              f"\t (ST Decrease of at least 3 seconds, exactly 3 seconds after GSR Onset (1) or 2 and 6 seconds "
+              f" after GSR Onset (0.5)) \n")
+
+        print(f"Number of times Rule 3 was met: "
+              f"{len(data_r1_r2_r3_r4[data_r1_r2_r3_r4['R3'] > 0])} \n"
+              f"\t (GSR Increase between 1 and 5 seconds (1) or 5 and 15 seconds (0.5)) \n")
+
+        print(f"Number of times Rule 4 was met: "
+              f"{len(data_r1_r2_r3_r4[data_r1_r2_r3_r4['R4'] > 0])} \n"
+              f"\t (GSR Increase Slope between local GSR minimum and local GSR maximum"
+              f" was greater than 0.1 (1) or greater than 0.08 (0.5)) \n")
+
+        print(f"Number of times all rules were met: "
+              f"{len(data_r1_r2_r3_r4[(data_r1_r2_r3_r4['R1shifted'] > 0) & (data_r1_r2_r3_r4['R2'] > 0) & (data_r1_r2_r3_r4['R3'] > 0) & (data_r1_r2_r3_r4['R4'] > 0)])} \n")
+
+    # TODO - continue with Rule 5
+    ##### Rule Aggregation #####
+    data_r1_r2_r3_r4['MOS_score'] = data_r1_r2_r3_r4[['R1shifted', 'R2', 'R3', 'R4']].sum(axis=1)
+
+    #### Rule 5: 2 consecutive MOS not within 10 seconds ####
+    detected_MOS = data_r1_r2_r3_r4[data_r1_r2_r3_r4['MOS_score'] >= MOSpercentage]
+
+    df_r_1_2_3_4_5_met = utilities.check_timestamp_gaps(detected_MOS, duration=latency,
+                                                        col_name="MOS_not_within_10_seconds")
+
+    mos_identified = df_r_1_2_3_4_5_met[df_r_1_2_3_4_5_met['MOS_not_within_10_seconds'] == True]
+
+    #print("Number of MOS detected based on ST & GSR Rules: ", len(mos_identified))
+
+    final_MOS_output = pd.merge(data_r,
+                                mos_identified[['time_iso', 'MOS_score']],
+                                on='time_iso', how='left')
+
+    final_MOS_output["detectedMOS"] = np.where(final_MOS_output["MOS_score"] >= MOSpercentage, 1, 0)
+
+    return final_MOS_output, data_r1_r2_r3_r4, len(mos_identified)
+
+
+
 ################ Rules ################
 
 

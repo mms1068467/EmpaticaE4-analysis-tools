@@ -14,6 +14,8 @@ import io
 #import filetype
 import shutil
 
+from io import BytesIO
+
 import E4_Analysis_tools as e4at
 
 from MOS_Detection import MOS_rules_paper_verified as mrp
@@ -103,6 +105,44 @@ if uploaded_E4_zip_folder is not None:
 
     moser2023 = st.sidebar.checkbox("Individual-oriented MOS Algorithm - Moser et al. (2023)")
 
+
+    # TODO - potentially uncomment this
+
+    #filename = uploaded_E4_zip_folder.name
+    #filetype = uploaded_E4_zip_folder.type
+
+    # st.write("File name is ", filename)
+    # st.write("File type is ", filetype)
+
+    #if filename.endswith(".zip"):
+
+        # st.write("ID is: ", filename.split(".zip")[0])
+    #    folderID = filename.split(".zip")[0]
+
+        # st.write(uploaded_E4_zip_folder)
+
+    #    with zipfile.ZipFile(uploaded_E4_zip_folder, 'r') as zipObj:
+            # extract all content of zip file in current directory
+    #        list_of_files = zipObj.namelist()
+
+    #        zipObj.extractall(path)
+
+    #        for fl in list_of_files:
+    #            subfolder_path = Path.joinpath(path, fl)
+
+    #            st.write("File Name: ", subfolder_path)
+
+    #            with zipfile.ZipFile(subfolder_path, 'r') as zipO:
+    #                file_ls = zipO.namelist()
+
+    #                zipO.extractall(path)
+
+                    #st.write(Path.joinpath(path, file_ls))
+
+    #                patID = file_ls[0].split("/")[0]
+
+    #                st.write("patID which will be set to ID is: ", patID)
+
     try:
 
         if kyriakou2019:
@@ -112,6 +152,8 @@ if uploaded_E4_zip_folder is not None:
             kyriakou_MOS_outputs = []
 
             eda_file_list = []
+
+            # TODO - uncomment this to get the older working version
 
             filename = uploaded_E4_zip_folder.name
             filetype = uploaded_E4_zip_folder.type
@@ -137,16 +179,22 @@ if uploaded_E4_zip_folder is not None:
 
                         #st.write("File Name: ", subfolder_path.split(".zip")[0])
 
+                        #st.write(subfolder_path)
+                        #if subfolder_path.endswith('.zip'):
+
 
                         with zipfile.ZipFile(subfolder_path, 'r') as zipO:
                             file_ls = zipO.namelist()
+                            st.write(file_ls)
 
                             zipO.extractall(path)
 
                             #st.write(Path.joinpath(path, file_ls))
                             patID = file_ls[0].split("/")[0]
 
+                        #else:
 
+                            st.write("patID which will be set to ID is: ", patID)
 
                             for filen in file_ls:
                                 if 'EDA' in filen and 'MACOSX' not in filen:
@@ -202,7 +250,7 @@ if uploaded_E4_zip_folder is not None:
                                         columns={'datetime': 'time_iso', 'time': 'time_unix', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
                                                  'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
 
-                                    SALK_info = join_GSR_ST_MOS[["time_iso", "ID", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
+                                    SALK_info = join_GSR_ST_MOS[["time_iso", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
 
                                     #join_GSR_ST_MOS = join_GSR_ST_MOS.drop(
                                     #    ["date", "time", "Vorgang", "Uhrzeit", "Anmerkung"],
@@ -249,8 +297,12 @@ if uploaded_E4_zip_folder is not None:
                                     kyriakou_MOS_outputs.append(MOS_output_renamed_rel)
 
 
-                                #initial_start_time = EDA_labeled_date_extract['datetime'].min()
-                                #initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
+                                                #initial_start_time = EDA_labeled_date_extract['datetime'].min()
+                                                #initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
+
+
+            else:
+                pass
 
             combined_MOS_kyriakou = pd.concat(kyriakou_MOS_outputs)
             st.write("Length of combined MOS Outputs", len(combined_MOS_kyriakou))
@@ -258,7 +310,17 @@ if uploaded_E4_zip_folder is not None:
             overall_mos_nr_kyriakou = len(combined_MOS_kyriakou[combined_MOS_kyriakou["detectedMOS"] == 1])
             st.write("Overall Number of MOS Detected: ", overall_mos_nr_kyriakou)
 
+            if st.checkbox("Download Kyriakou et al. 2019 - MOS Analysis:"):
+                # download detected MOS based on Kyriakou et al. 2019
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine = "xlsxwriter") as writer:
+                    combined_MOS_kyriakou.to_excel(writer, sheet_name = "Sheet1")
 
+                download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                                            file_name="MOS-Detection_kyriakou2019.xlsx",
+                                                            mime="application/vnd.ms-excel")
+
+            #combined_MOS_kyriakou.to_csv(f"{path}_MOS_output.csv", index=False)
 
         if moser2023:
 
@@ -373,7 +435,7 @@ if uploaded_E4_zip_folder is not None:
                                         columns={'datetime': 'time_iso', 'time': 'time_unix', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
                                                  'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
 
-                                    SALK_info = join_GSR_ST_MOS[["time_iso", "ID", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
+                                    SALK_info = join_GSR_ST_MOS[["time_iso", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
 
                                     #join_GSR_ST_MOS = join_GSR_ST_MOS.drop(
                                     #    ["date", "time", "Vorgang", "Uhrzeit", "Anmerkung"],
@@ -461,12 +523,31 @@ if uploaded_E4_zip_folder is not None:
                                 # initial_start_time = EDA_labeled_date_extract['datetime'].min()
                                 # initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
 
+
+            else:
+                pass
+
             combined_MOS_moser = pd.concat(moser_MOS_outputs)
             st.write("Length of combined MOS Outputs", len(combined_MOS_moser))
             st.write(combined_MOS_moser)
             overall_mos_nr_moser = len(
                 combined_MOS_moser[combined_MOS_moser["detectedMOS"] == 1])
             st.write("Overall Number of MOS Detected: ", overall_mos_nr_moser)
+
+
+
+            if st.checkbox("Download Moser et al. 2023 - MOS Analysis:"):
+                # download detected MOS based on Kyriakou et al. 2019
+                buffer = BytesIO()
+                with pd.ExcelWriter(buffer, engine = "xlsxwriter") as writer:
+                    combined_MOS_moser.to_excel(writer, sheet_name = "Sheet1")
+
+                download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                                            file_name="MOS-Detection_moser2023.xlsx",
+                                                            mime="application/vnd.ms-excel")
+
+            # writes output to .csv file located in 'src' -- name is 'pages_MOS_output.csv'
+            #combined_MOS_moser.to_csv(f"{path}_MOS_output.csv", index=False)
 
 
     except (ValueError, RuntimeError, TypeError, NameError, pd.io.sql.DatabaseError, sqlite3.OperationalError):
