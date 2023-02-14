@@ -13,7 +13,6 @@ import base64
 import io
 #import filetype
 import shutil
-
 from io import BytesIO
 
 import E4_Analysis_tools as e4at
@@ -32,12 +31,20 @@ def save_uploadedfile(uploaded_file, path: str):
 
     return st.success("Temporarily saved file: {} to {}".format(uploaded_file.name, path))
 
+def adjust_ts(data, time_col, hours = 1):
+
+    df = data.copy()
+    df[time_col] = pd.to_datetime(df[time_col].astype(str))
+    df[time_col] += pd.to_timedelta(hours, unit = 'h')
+    df[time_col] = df[time_col].dt.time
+    return df
+
 
 #### Caching the plot functions to (slightly) increase performance
 @st.cache(allow_output_mutation=True)
-def merge_data(signal_path, labels_path, signal):
+def merge_data(signal_path, labels_path, signal, adjust_timestamp):
 
-    return_signal = e4at.merge_data(signal_path=signal_path, labels_path=labels_path, signal=signal)
+    return_signal = e4at.merge_data(signal_path=signal_path, labels_path=labels_path, signal=signal, adjust_timestamp = adjust_timestamp)
 
     return return_signal
 
@@ -214,34 +221,96 @@ if uploaded_E4_zip_folder is not None:
                                     #        patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
                                     #            patientNr)))
 
-                                    EDA_labeled_date_extract = merge_data(
-                                        signal_path=Path.joinpath(patientPath, "EDA.csv"),
-                                        labels_path=Path.joinpath(
-                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                                patientNr)),
-                                        signal="EDA")
+                                    # TODO - Timestamp Adjustment --> add 1 hour in seconds to Uhrzeit in Zeitenauswertung
+                                    patients_to_adjust = ["Pat.18", "Pat.19", "Pat.20",
+                                                          "Pat.21", "Pat.22", "Pat.23", "Pat.24", "Pat.25",
+                                                          "Pat.26", "Pat.27", "Pat.28", "Pat.29", "Pat.30"]
+                                    #patients_to_adjust = [18, 19, 20, 21, 22, 23, 24, 25,
+                                    #                      26, 27, 28, 29, 30]
 
-                                    EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
+                                    if patID in patients_to_adjust:
 
-                                    EDA_labeled_date_extract["ID"] = patID
-                                    #st.write(EDA_labeled_date_extract)
+                                        st.write("Adjusting Timestamp:")
 
-                                    # Prepare ST for MOS generation
-                                    ST_labeled_MOS = merge_data(
-                                        signal_path=Path.joinpath(patientPath, "TEMP.csv"),
-                                        labels_path=Path.joinpath(
-                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                                patientNr)),
-                                        signal="ST")
+                                        EDA_labeled_date_extract = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "EDA.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="EDA",
+                                        adjust_timestamp = True)
 
-                                    ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
 
-                                    ST_preprocessed_MOS["ID"] = patID
+                                        EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
 
-                                    # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
-                                    join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
-                                                               ST_preprocessed_MOS[["ST", "ST_filtered", "datetime"]],
-                                                               left_on="datetime", right_on="datetime", how="left")
+                                        EDA_labeled_date_extract["ID"] = patID
+                                        # st.write(EDA_labeled_date_extract)
+
+                                        # Prepare ST for MOS generation
+                                        ST_labeled_MOS = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "TEMP.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="ST",
+                                        adjust_timestamp = True)
+
+                                        ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
+
+                                        ST_preprocessed_MOS["ID"] = patID
+
+                                        # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
+                                        join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
+                                                                   ST_preprocessed_MOS[
+                                                                       ["ST", "ST_filtered", "datetime"]],
+                                                                   left_on="datetime", right_on="datetime", how="left")
+
+                                        ########## individual file imports for debugging purposes (adjusting timestamps of certain files)
+                                        #Zeitenauswertung = pd.read_excel(Path.joinpath(
+                                        #    patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                        #        patientNr)))
+
+                                        #st.write("Zeitenauswertung von Patient VOR Adjustment:", Zeitenauswertung)
+
+                                        #Zeitenauswertung = adjust_ts(Zeitenauswertung, time_col = "Uhrzeit")
+
+                                        #EDA_file = e4at.EDA_processing(Path.joinpath(patientPath, "EDA.csv"))
+                                        #st.write("EDA file for Patient", patID, " :", EDA_file)
+
+                                    else:
+
+                                        EDA_labeled_date_extract = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "EDA.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="EDA",
+                                        adjust_timestamp = False)
+
+                                        EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
+
+                                        EDA_labeled_date_extract["ID"] = patID
+                                        # st.write(EDA_labeled_date_extract)
+
+                                        # Prepare ST for MOS generation
+                                        ST_labeled_MOS = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "TEMP.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="ST",
+                                        adjust_timestamp = False)
+
+                                        ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
+
+                                        ST_preprocessed_MOS["ID"] = patID
+
+                                        # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
+                                        join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
+                                                                   ST_preprocessed_MOS[
+                                                                       ["ST", "ST_filtered", "datetime"]],
+                                                                   left_on="datetime", right_on="datetime", how="left")
+
 
                                     #st.write("Joined GSR and ST MOS Data", join_GSR_ST_MOS)
 
@@ -297,10 +366,6 @@ if uploaded_E4_zip_folder is not None:
                                     kyriakou_MOS_outputs.append(MOS_output_renamed_rel)
 
 
-                                                #initial_start_time = EDA_labeled_date_extract['datetime'].min()
-                                                #initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
-
-
             else:
                 pass
 
@@ -340,18 +405,19 @@ if uploaded_E4_zip_folder is not None:
 
             eda_file_list = []
 
+
             filename = uploaded_E4_zip_folder.name
             filetype = uploaded_E4_zip_folder.type
 
-            # st.write("File name is ", filename)
-            # st.write("File type is ", filetype)
+            #st.write("File name is ", filename)
+            #st.write("File type is ", filetype)
 
             if filename.endswith(".zip"):
 
-                # st.write("ID is: ", filename.split(".zip")[0])
+                #st.write("ID is: ", filename.split(".zip")[0])
                 folderID = filename.split(".zip")[0]
 
-                # st.write(uploaded_E4_zip_folder)
+                #st.write(uploaded_E4_zip_folder)
 
                 with zipfile.ZipFile(uploaded_E4_zip_folder, 'r') as zipObj:
                     # extract all content of zip file in current directory
@@ -362,42 +428,137 @@ if uploaded_E4_zip_folder is not None:
                     for fl in list_of_files:
                         subfolder_path = Path.joinpath(path, fl)
 
-                        # st.write("File Name: ", subfolder_path.split(".zip")[0])
+                        #st.write("File Name: ", subfolder_path.split(".zip")[0])
+
+                        #st.write(subfolder_path)
+                        #if subfolder_path.endswith('.zip'):
+
 
                         with zipfile.ZipFile(subfolder_path, 'r') as zipO:
                             file_ls = zipO.namelist()
+                            st.write(file_ls)
 
                             zipO.extractall(path)
 
-                            # st.write(Path.joinpath(path, file_ls))
+                            #st.write(Path.joinpath(path, file_ls))
                             patID = file_ls[0].split("/")[0]
+
+                        #else:
+
+                            st.write("patID which will be set to ID is: ", patID)
 
                             for filen in file_ls:
                                 if 'EDA' in filen and 'MACOSX' not in filen:
                                     path_to_EDA_file = Path.joinpath(path, filen)
-                                    # st.write("Path to the EDA file is: ", path_to_EDA_file)
+                                    #st.write("Path to the EDA file is: ", path_to_EDA_file)
 
                                     patientPath = Path.joinpath(path, filen.split("/")[0])
 
-                                    # st.write("Path to Patient is patientPath", patientPath)
+                                    #st.write("Path to Patient is patientPath", patientPath)
 
                                     patientNr = fl.split(".")[1]
 
                                     st.write("Patient Number:", patientNr)
 
-                                    # st.write("Path to EDA file: ", Path.joinpath(patientPath, "EDA.csv"))
-                                    # st.write("Path to Auswertungsfile file: ", Path.joinpath(
-                                    #        patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                    #            patientNr)))
 
-                                    EDA_labeled_date_extract = merge_data(
-                                        signal_path=Path.joinpath(patientPath, "EDA.csv"),
-                                        labels_path=Path.joinpath(
-                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                                patientNr)),
-                                        signal="EDA")
+                                    # TODO - Timestamp Adjustment --> add 1 hour in seconds to Uhrzeit in Zeitenauswertung
+                                    patients_to_adjust = ["Pat.18", "Pat.19", "Pat.20",
+                                                          "Pat.21", "Pat.22", "Pat.23", "Pat.24", "Pat.25",
+                                                          "Pat.26", "Pat.27", "Pat.28", "Pat.29", "Pat.30"]
+                                    #patients_to_adjust = [18, 19, 20, 21, 22, 23, 24, 25,
+                                    #                      26, 27, 28, 29, 30]
 
-                                    #st.write(EDA_labeled_date_extract)
+                                    if patID in patients_to_adjust:
+
+                                        st.write("Adjusting Timestamp:")
+
+                                        EDA_labeled_date_extract = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "EDA.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="EDA",
+                                        adjust_timestamp = True)
+
+                                        EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
+
+                                        EDA_labeled_date_extract["ID"] = patID
+                                        # st.write(EDA_labeled_date_extract)
+
+                                        # Prepare ST for MOS generation
+                                        ST_labeled_MOS = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "TEMP.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="ST",
+                                        adjust_timestamp = True)
+
+                                        ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
+
+                                        ST_preprocessed_MOS["ID"] = patID
+
+                                        # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
+                                        join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
+                                                                   ST_preprocessed_MOS[
+                                                                       ["ST", "ST_filtered", "datetime"]],
+                                                                   left_on="datetime", right_on="datetime", how="left")
+
+                                        ########## individual file imports for debugging purposes (adjusting timestamps of certain files)
+                                        #Zeitenauswertung = pd.read_excel(Path.joinpath(
+                                        #    patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                        #        patientNr)))
+
+                                        #st.write("Zeitenauswertung von Patient VOR Adjustment:", Zeitenauswertung)
+
+                                        #Zeitenauswertung = adjust_ts(Zeitenauswertung, time_col = "Uhrzeit")
+
+                                        #EDA_file = e4at.EDA_processing(Path.joinpath(patientPath, "EDA.csv"))
+                                        #st.write("EDA file for Patient", patID, " :", EDA_file)
+
+                                    else:
+
+                                        EDA_labeled_date_extract = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "EDA.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="EDA",
+                                        adjust_timestamp = False)
+
+                                        EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
+
+                                        EDA_labeled_date_extract["ID"] = patID
+                                        # st.write(EDA_labeled_date_extract)
+
+                                        # Prepare ST for MOS generation
+                                        ST_labeled_MOS = merge_data(
+                                            signal_path=Path.joinpath(patientPath, "TEMP.csv"),
+                                            labels_path=Path.joinpath(
+                                                patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
+                                                    patientNr)),
+                                            signal="ST",
+                                        adjust_timestamp = False)
+
+                                        ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
+
+                                        ST_preprocessed_MOS["ID"] = patID
+
+                                        # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
+                                        join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
+                                                                   ST_preprocessed_MOS[
+                                                                       ["ST", "ST_filtered", "datetime"]],
+                                                                   left_on="datetime", right_on="datetime", how="left")
+
+
+                                    #st.write("Joined GSR and ST MOS Data", join_GSR_ST_MOS)
+
+
+                                    join_GSR_ST_MOS.rename(
+                                        columns={'datetime': 'time_iso', 'time': 'time_unix', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
+                                                 'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
+
+
 
                                     initial_start_time = EDA_labeled_date_extract['datetime'].min()
                                     initial_end_time = EDA_labeled_date_extract['datetime'].max().round('1s')
@@ -405,35 +566,6 @@ if uploaded_E4_zip_folder is not None:
                                     start_time = initial_start_time + pd.to_timedelta(start_time_trim, "s")
                                     end_time = initial_end_time - pd.to_timedelta(end_time_trim, "s")
 
-                                    EDA_preprocessed_MOS = e4at.preprocess_EDA(EDA_labeled_date_extract)
-
-                                    EDA_labeled_date_extract["ID"] = patID
-                                    #st.write(EDA_labeled_date_extract)
-
-                                    # Prepare ST for MOS generation
-                                    ST_labeled_MOS = merge_data(
-                                        signal_path=Path.joinpath(patientPath, "TEMP.csv"),
-                                        labels_path=Path.joinpath(
-                                            patientPath, "ZeitenauswertungEmpaticaPat{}.xlsx".format(
-                                                patientNr)),
-                                        signal="ST")
-
-                                    #st.write(ST_labeled_MOS)
-
-                                    ##### Time Filtering
-                                    #ST_labeled_MOS = ST_labeled_MOS[
-                                    #    (ST_labeled_MOS['datetime'] >= start_time) & (
-                                    #                ST_labeled_MOS['datetime'] <= end_time)]
-
-                                    ST_preprocessed_MOS = e4at.preprocess_ST(ST_labeled_MOS)
-
-                                    # fine-tuning of prepared GSR and ST by merging into single dataframe as well as generating TimeNum and renaming and removing of the columns
-                                    join_GSR_ST_MOS = pd.merge(EDA_preprocessed_MOS,
-                                                               ST_preprocessed_MOS[["ST", "ST_filtered", "datetime"]],
-                                                               left_on="datetime", right_on="datetime", how="left")
-                                    join_GSR_ST_MOS.rename(
-                                        columns={'datetime': 'time_iso', 'time': 'time_unix', 'EDA': 'GSR_raw', 'EDA_filtered': 'GSR',
-                                                 'ST': 'ST_raw', 'ST_filtered': 'ST'}, inplace=True)
 
                                     SALK_info = join_GSR_ST_MOS[["time_iso", "date", "time_unix", "Vorgang", "Uhrzeit", "Anmerkung"]]
 
