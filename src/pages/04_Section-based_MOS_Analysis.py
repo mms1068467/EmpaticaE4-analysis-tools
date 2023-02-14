@@ -17,21 +17,21 @@ st.markdown("# Drag and drop the Stress Output .xlsx file and calculate Number o
 path = Path(__file__).parent.resolve()
 
 
-
 uploaded_stress_file = st.file_uploader("Upload your Stress Detection file here ...", type=["xlsx"],
                                           accept_multiple_files=False)
 
 def MOS_time_sections(data, ts_col1, ts_col2):
 
     df = data.copy()
-    duration = len(df)
+    duration_overall = len(df)
     df.set_index('time_iso', inplace = True)
     section_subset = df[ts_col1:ts_col2]
+    duration = len(section_subset)
     section_subset_mos = section_subset[section_subset['detectedMOS'] == 1]
     mos_cnt = len(section_subset_mos)
     df.reset_index()
 
-    return mos_cnt, duration
+    return mos_cnt, duration, duration_overall
 
 
 
@@ -84,12 +84,12 @@ if uploaded_stress_file is not None:
                 st.write("Timestamp Hautschnitt: ", patient_id_HS_ts)
                 st.write("Timestamp Hautschnitt + 5 Minutes: ", patient_id_HS_ts_plus5)
 
-                MOS_HS_HS5min, HS_HS5min_dur = MOS_time_sections(stress_subset, patient_id_HS_ts, patient_id_HS_ts_plus5)
-                MOS_T1_T2, T1_T2_dur = MOS_time_sections(stress_subset, patient_id_T1_ts, patient_id_T2_ts)
-                MOS_T2_T3, T2_T3_dur = MOS_time_sections(stress_subset, patient_id_T2_ts, patient_id_T3_ts)
-                MOS_T3_T4, T3_T4_dur = MOS_time_sections(stress_subset, patient_id_T3_ts, patient_id_T4_ts)
-                MOS_T4_T5, T4_T5_dur = MOS_time_sections(stress_subset, patient_id_T4_ts, patient_id_T5_ts)
-                MOS_T5_T6, T5_T6_dur = MOS_time_sections(stress_subset, patient_id_T5_ts, patient_id_T6_ts)
+                MOS_HS_HS5min, HS_HS5min_dur, total_dur = MOS_time_sections(stress_subset, patient_id_HS_ts, patient_id_HS_ts_plus5)
+                MOS_T1_T2, T1_T2_dur, total_dur = MOS_time_sections(stress_subset, patient_id_T1_ts, patient_id_T2_ts)
+                MOS_T2_T3, T2_T3_dur, total_dur = MOS_time_sections(stress_subset, patient_id_T2_ts, patient_id_T3_ts)
+                MOS_T3_T4, T3_T4_dur, total_dur = MOS_time_sections(stress_subset, patient_id_T3_ts, patient_id_T4_ts)
+                MOS_T4_T5, T4_T5_dur, total_dur = MOS_time_sections(stress_subset, patient_id_T4_ts, patient_id_T5_ts)
+                MOS_T5_T6, T5_T6_dur, total_dur = MOS_time_sections(stress_subset, patient_id_T5_ts, patient_id_T6_ts)
 
                 st.write("Number of MOS between Hautschnitt and 5 Minutes afterwards: ", MOS_time_sections(stress_subset, patient_id_HS_ts, patient_id_HS_ts_plus5))
 
@@ -169,12 +169,6 @@ if uploaded_stress_file is not None:
         download_excel = st.download_button(label="Download Excel file", data=buffer,
                                             file_name="Section-based-MOS-Detection.xlsx",
                                             mime="application/vnd.ms-excel")
-
-    #for index in Stress_data.index:
-    #    patient_id = Stress_data['ID'][index]
-    #    stress_subset = Stress_data[Stress_data["ID"] == patient_id]
-    #    st.write("Patient Subset", stress_subset)
-
 
     #### Section Timestamps:
     #patient_id_HS_ts = stress_subset[stress_subset["Vorgang"] == "Hautschnitt"]["time_iso"].values[0]
