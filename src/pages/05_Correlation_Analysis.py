@@ -81,7 +81,12 @@ if uploaded_data_file is not None:
                  'MOS_T5_T6_new': 'T5_T6',
                  'MOS_T5_T6_new_per_sec': 'T5_T6/s'}, inplace=True)
 
+    st.header("Section-based Stress Analysis")
+
     st.write(stress_subset)
+
+
+    # TODO - get mean & standard deviation
 
 
     st.header("Basic Visuals:")
