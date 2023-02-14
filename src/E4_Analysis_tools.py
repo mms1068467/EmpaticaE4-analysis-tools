@@ -9,9 +9,21 @@ from scipy import signal
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
-def merge_data(signal_path: str, labels_path: str, signal: str = "HR") -> pd.DataFrame:
+def adjust_ts(data, time_col, hours = 1):
+
+    df = data.copy()
+    df[time_col] = pd.to_datetime(df[time_col].astype(str))
+    df[time_col] += pd.to_timedelta(hours, unit = 'h')
+    df[time_col] = df[time_col].dt.time
+    return df
+
+def merge_data(signal_path: str, labels_path: str, signal: str = "HR", adjust_timestamp = False) -> pd.DataFrame:
 
     Zeitenauswertung = pd.read_excel(labels_path)
+
+    if adjust_timestamp:
+        Zeitenauswertung = adjust_ts(Zeitenauswertung, time_col = "Uhrzeit")
+
 
     if signal == "HR":
         HR_prepared = HR_processing(signal_path)
