@@ -42,7 +42,7 @@ if uploaded_data_file is not None:
 
     st.write("Data File name", file_name_data)
 
-    path_to_data_file = str(path) + "\\" + file_name_data
+    path_to_data_file = str(path) + "/" + file_name_data
 
 
     sheets_dict = pd.read_excel(path_to_data_file,
