@@ -24,13 +24,14 @@ uploaded_stress_file = st.file_uploader("Upload your Stress Detection file here 
 def MOS_time_sections(data, ts_col1, ts_col2):
 
     df = data.copy()
+    duration = len(df)
     df.set_index('time_iso', inplace = True)
     section_subset = df[ts_col1:ts_col2]
     section_subset_mos = section_subset[section_subset['detectedMOS'] == 1]
     mos_cnt = len(section_subset_mos)
     df.reset_index()
 
-    return mos_cnt
+    return mos_cnt, duration
 
 
 
@@ -66,6 +67,7 @@ if uploaded_stress_file is not None:
         #st.write(available_sections)
 
         MOS_cnt_total = len(stress_subset[stress_subset['detectedMOS'] == 1])
+        total_dur = len(stress_subset)
 
         if "Hautschnitt" in available_sections:
             try:
@@ -82,12 +84,12 @@ if uploaded_stress_file is not None:
                 st.write("Timestamp Hautschnitt: ", patient_id_HS_ts)
                 st.write("Timestamp Hautschnitt + 5 Minutes: ", patient_id_HS_ts_plus5)
 
-                MOS_HS_HS5min = MOS_time_sections(stress_subset, patient_id_HS_ts, patient_id_HS_ts_plus5)
-                MOS_T1_T2 = MOS_time_sections(stress_subset, patient_id_T1_ts, patient_id_T2_ts)
-                MOS_T2_T3 = MOS_time_sections(stress_subset, patient_id_T2_ts, patient_id_T3_ts)
-                MOS_T3_T4 = MOS_time_sections(stress_subset, patient_id_T3_ts, patient_id_T4_ts)
-                MOS_T4_T5 = MOS_time_sections(stress_subset, patient_id_T4_ts, patient_id_T5_ts)
-                MOS_T5_T6 = MOS_time_sections(stress_subset, patient_id_T5_ts, patient_id_T6_ts)
+                MOS_HS_HS5min, HS_HS5min_dur = MOS_time_sections(stress_subset, patient_id_HS_ts, patient_id_HS_ts_plus5)
+                MOS_T1_T2, T1_T2_dur = MOS_time_sections(stress_subset, patient_id_T1_ts, patient_id_T2_ts)
+                MOS_T2_T3, T2_T3_dur = MOS_time_sections(stress_subset, patient_id_T2_ts, patient_id_T3_ts)
+                MOS_T3_T4, T3_T4_dur = MOS_time_sections(stress_subset, patient_id_T3_ts, patient_id_T4_ts)
+                MOS_T4_T5, T4_T5_dur = MOS_time_sections(stress_subset, patient_id_T4_ts, patient_id_T5_ts)
+                MOS_T5_T6, T5_T6_dur = MOS_time_sections(stress_subset, patient_id_T5_ts, patient_id_T6_ts)
 
                 st.write("Number of MOS between Hautschnitt and 5 Minutes afterwards: ", MOS_time_sections(stress_subset, patient_id_HS_ts, patient_id_HS_ts_plus5))
 
@@ -95,12 +97,26 @@ if uploaded_stress_file is not None:
 
                     temp_data_Moser = pd.DataFrame( {"ID": [patient_id],
                                                "MOS_total_new": [MOS_cnt_total],
+                                                "MOS_total_dur4Hz": [total_dur],
+                                                     "MOS_total_dur1Hz": [total_dur / 4],
                                                "MOS_HS_HS5min_new": [MOS_HS_HS5min],
+                                                "MOS_HS_HS5min_dur4Hz": [HS_HS5min_dur],
+                                                     "MOS_HS_HS5min_dur1Hz": [HS_HS5min_dur / 4],
                                                "MOS_T1_T2_new": [MOS_T1_T2],
+                                                "MOS_T1_T2_dur4Hz": [T1_T2_dur],
+                                                     "MOS_T1_T2_dur1Hz": [T1_T2_dur / 4],
                                                "MOS_T2_T3_new": [MOS_T2_T3],
+                                                "MOS_T2_T3_dur4Hz": [T2_T3_dur],
+                                                     "MOS_T2_T3_dur1Hz": [T2_T3_dur / 4],
                                                "MOS_T3_T4_new": [MOS_T3_T4],
+                                                "MOS_T3_T4_dur4Hz": [T3_T4_dur],
+                                                     "MOS_T3_T4_dur1Hz": [T3_T4_dur / 4],
                                                "MOS_T4_T5_new": [MOS_T4_T5],
-                                               "MOS_T5_T6_new": [MOS_T5_T6] } )
+                                                "MOS_T4_T5_dur4Hz": [T4_T5_dur],
+                                                     "MOS_T4_T5_dur1Hz": [T4_T5_dur / 4],
+                                               "MOS_T5_T6_new": [MOS_T5_T6],
+                                                "MOS_T5_T6_dur4Hz": [T5_T6_dur],
+                                                     "MOS_T5_T6_dur1Hz": [T5_T6_dur / 4]} )
 
                     patients_MOS.append(temp_data_Moser)
 
@@ -108,12 +124,26 @@ if uploaded_stress_file is not None:
 
                     temp_data_Kyriakou = pd.DataFrame( {"ID": [patient_id],
                                                "MOS_total_old": [MOS_cnt_total],
+                                                        "MOS_total_dur4Hz": [total_dur],
+                                                        "MOS_total_dur1Hz": [total_dur / 4],
                                                "MOS_HS_HS5min_old": [MOS_HS_HS5min],
+                                                        "MOS_HS_HS5min_dur4Hz": [HS_HS5min_dur],
+                                                        "MOS_HS_HS5min_dur1Hz": [HS_HS5min_dur / 4],
                                                "MOS_T1_T2_old": [MOS_T1_T2],
+                                                        "MOS_T1_T2_dur4Hz": [T1_T2_dur],
+                                                        "MOS_T1_T2_dur1Hz": [T1_T2_dur / 4],
                                                "MOS_T2_T3_old": [MOS_T2_T3],
+                                                        "MOS_T2_T3_dur4Hz": [T2_T3_dur],
+                                                        "MOS_T2_T3_dur1Hz": [T2_T3_dur / 4],
                                                "MOS_T3_T4_old": [MOS_T3_T4],
+                                                        "MOS_T3_T4_dur4Hz": [T3_T4_dur],
+                                                        "MOS_T3_T4_dur1Hz": [T3_T4_dur / 4],
                                                "MOS_T4_T5_old": [MOS_T4_T5],
-                                               "MOS_T5_T6_old": [MOS_T5_T6] } )
+                                                        "MOS_T4_T5_dur4Hz": [T4_T5_dur],
+                                                        "MOS_T4_T5_dur1Hz": [T4_T5_dur / 4],
+                                               "MOS_T5_T6_old": [MOS_T5_T6],
+                                                        "MOS_T5_T6_dur4Hz": [T5_T6_dur],
+                                                        "MOS_T5_T6_dur1Hz": [T5_T6_dur / 4]} )
 
                     patients_MOS.append(temp_data_Kyriakou)
 
