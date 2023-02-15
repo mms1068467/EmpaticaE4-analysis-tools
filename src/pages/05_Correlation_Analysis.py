@@ -96,7 +96,13 @@ if uploaded_data_file is not None:
         y = "MOS_total",
         color = "Gender",
         tooltip = ["STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
+    ).properties(
+        title = "Number of Stress Moments vs. Age based (gender color-coded)"
     ).interactive()
+    MOS_vs_Age_gender_based.configure_header(
+        titleColor='black',
+        titleFontSize=14,
+    )
 
     st.altair_chart(MOS_vs_Age_gender_based, use_container_width=True)
 
@@ -111,7 +117,6 @@ if uploaded_data_file is not None:
         var1 = st.selectbox("Please select the Measurement variable you want to visualize on the X-axis",
                      options = options_one)
         var1_series = Patient_one_time[var1]
-        #st.write(var1_series)
 
     with col2:
 
@@ -119,20 +124,10 @@ if uploaded_data_file is not None:
         var2 = st.selectbox("Please select the Stress variables you want to visualize on the Y-axis",
                      options=options_two)
         var2_series = Patient_one_time[var2]
-        #st.write(var2_series)
 
     try:
 
-        combined_plot_data = pd.concat([var1_series, var2_series,
-                                        Patient_one_time["ID"],
-                                        Patient_one_time["Gender"],
-                                        Patient_one_time["STAI-T/T-Werte"],
-                                        Patient_one_time["PostOPFrage"],
-                                        Patient_one_time["Sedierung erhalten"],
-                                        Patient_one_time["Mepivacain 1%/ml"],
-                                        Patient_one_time["NRS max"]], axis=1)
-
-        combined_plot = alt.Chart(combined_plot_data).mark_circle(size = 60).encode(
+        combined_plot = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
             x = var1,
             y = var2,
             tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
@@ -151,7 +146,7 @@ if uploaded_data_file is not None:
 
             combined_plot_data = pd.concat([var1_series, var2_series, var3_series], axis=1)
 
-            combined_plot = alt.Chart(combined_plot_data).mark_circle(size=60).encode(
+            combined_plot = alt.Chart(Patient_one_time).mark_circle(size=60).encode(
                 x=var1,
                 y=var2,
                 color = var3
@@ -181,37 +176,66 @@ st.sidebar.subheader("Signal Visualization")
 visualize_eda = st.sidebar.checkbox("Visualize EDA recordings for a specific patient: ")
 
 if visualize_eda:
-    uploaded_signal_measurements = st.file_uploader("Upload the Excel file with the combined sensor measurements", type=["xlsx"],
+
+    patients = list(Patient_one_time["ID"].unique())
+
+    selected_patient = st.sidebar.radio(
+        "Set Patient for which sensor measurements should be displayed: ",
+        #    key="visibility",
+        options=patients,
+    )
+
+    uploaded_signal_measurements = st.file_uploader("Upload the Excel file with the combined sensor measurements", type=["xlsx", "csv"],
                                           accept_multiple_files=False)
 
     if uploaded_signal_measurements is not None:
         st.markdown("# Drag and drop the Stress Output .xlsx file and explore correlations:")
 
         save_uploadedfile(uploaded_file=uploaded_signal_measurements, path=path)
-        # file_extension = uploaded_data_file.name.split(".")[-1]
+        file_extension = uploaded_signal_measurements.name.split(".")[-1]
+        st.write("File Type is", file_extension)
         file_name_signals = uploaded_signal_measurements.name.split(".")[0] + "." + uploaded_signal_measurements.name.split(".")[1]
 
-        st.write("Data File name", file_name_signals)
+        st.write("Data File name: ", file_name_signals)
 
-        path_to_signals_file = str(path) + "\\" + file_name_signals
+        path_to_signals_file = str(path) + "/" + file_name_signals
 
-        sensor_measurements = pd.read_excel(path_to_signals_file)
+        st.write(path_to_signals_file)
 
-        st.write(sensor_measurements)
+        # TODO - try to adjust import subset of one patient
+        # Example(s): https://programtalk.com/python-more-examples/streamlit.file_uploader/
 
-        patients = list(sensor_measurements["ID"].unique())
+        if file_extension == "xlsx":
+            sensor_measurements = pd.read_excel(path_to_signals_file)
+
+            st.write(sensor_measurements.head())
+
+            sensor_measurements_filtered = sensor_measurements[sensor_measurements["ID"] == selected_patient]
+
+            st.write(sensor_measurements_filtered)
+
+        elif file_extension == "csv":
+            sensor_measurements = pd.read_csv(path_to_signals_file, delimiter=";")
+            #iter_csv = pd.read_csv(path_to_signals_file, iterator=True, chunksize=30000)
+            #sensor_measurements = pd.concat([chunk[chunk['ID'] == selected_patient] for chunk in iter_csv])
+
+            st.write(sensor_measurements)
+
+
+
+        #patients = list(sensor_measurements["ID"].unique())
 
         #if "visibility" not in st.session_state:
         #    st.session_state.visibility = "visible"
         #    st.session_state.disabled = False
 
-        st.sidebar.checkbox("Disable Patient selection:", key = "disabled")
+        #st.sidebar.checkbox("Disable Patient selection:", key = "disabled")
 
-        st.radio(
-            "Set Patient for which sensor measurements should be displayed: ",
+        #st.radio(
+        #    "Set Patient for which sensor measurements should be displayed: ",
         #    key="visibility",
-            options=patients,
-        )
+        #    options=patients,
+        #)
 
 
 
