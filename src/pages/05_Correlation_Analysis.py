@@ -123,16 +123,16 @@ if uploaded_data_file is not None:
 
     try:
 
-        combined_plot_data = pd.concat([var1_series, var2_series,
-                                        Patient_one_time["ID"],
-                                        Patient_one_time["Gender"],
-                                        Patient_one_time["STAI-T/T-Werte"],
-                                        Patient_one_time["PostOPFrage"],
-                                        Patient_one_time["Sedierung erhalten"],
-                                        Patient_one_time["Mepivacain 1%/ml"],
-                                        Patient_one_time["NRS max"]], axis=1)
+        #combined_plot_data = pd.concat([var1_series, var2_series,
+        #                                Patient_one_time["ID"],
+        #                                Patient_one_time["Gender"],
+        #                                Patient_one_time["STAI-T/T-Werte"],
+        #                                Patient_one_time["PostOPFrage"],
+        #                                Patient_one_time["Sedierung erhalten"],
+        #                                Patient_one_time["Mepivacain 1%/ml"],
+        #                                Patient_one_time["NRS max"]], axis=1)
 
-        combined_plot = alt.Chart(combined_plot_data).mark_circle(size = 60).encode(
+        combined_plot = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
             x = var1,
             y = var2,
             tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
@@ -151,7 +151,7 @@ if uploaded_data_file is not None:
 
             combined_plot_data = pd.concat([var1_series, var2_series, var3_series], axis=1)
 
-            combined_plot = alt.Chart(combined_plot_data).mark_circle(size=60).encode(
+            combined_plot = alt.Chart(Patient_one_time).mark_circle(size=60).encode(
                 x=var1,
                 y=var2,
                 color = var3
