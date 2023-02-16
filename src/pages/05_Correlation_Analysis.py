@@ -24,17 +24,38 @@ def get_MOS_per_second(data, number_of_mos, number_of_seconds):
 
     return mos_per_sec
 
+#TODO - use Section-based Stress Moments to calculate MOS over user-defined time interval based on number of MOS and duration / number of datapoints
+
+def MOS_per_time_interval(data, MOS_stress_section, durationCol = "MOS_total_dur4Hz", colName = "MOS/s", time_interval = 1):
+
+    df = data.copy()
+    # Calculate number of data points per second - division by 4 as we have a 4Hz sampling frequency for EDA
+    number_of_mos_per_second = df[durationCol] / 4
+    # Calculate number of stress moments per second and then multiply by user-defined time interval
+    df[colName] = (df[MOS_stress_section] / number_of_mos_per_second) * time_interval
+
+    return df
+
+def section_averge(data, MOS_stress_section):
+    df = data.copy()
+    pass
+
+def patient_average(data, MOS_stress_section):
+    df = data.copy()
+    pass
+
+
+
 
 
 path = Path(__file__).parent.resolve()
 
+st.header("Drag and drop the Stress Output .xlsx file and explore data & correlations:")
 
 uploaded_data_file = st.file_uploader("Upload your Excel file with the combined analysis output", type=["xlsx"],
                                           accept_multiple_files=False)
 
 if uploaded_data_file is not None:
-
-    st.markdown("# Drag and drop the Stress Output .xlsx file and explore correlations:")
 
     save_uploadedfile(uploaded_file=uploaded_data_file, path=path)
     # file_extension = uploaded_data_file.name.split(".")[-1]
@@ -51,6 +72,8 @@ if uploaded_data_file is not None:
     Patient_one_time = sheets_dict.get("OneTimeMeasurements")
     Patient_section_times = sheets_dict.get('SectionBasedMeasurements')
     Patient_stress = sheets_dict.get("SectionBasedStress")
+
+    st.header("Datasets within the Output file:")
 
     st.write("One time measurements", Patient_one_time)
     st.write("Section-based Measurements", Patient_section_times)
@@ -81,90 +104,215 @@ if uploaded_data_file is not None:
                  'MOS_T5_T6_new': 'T5_T6',
                  'MOS_T5_T6_new_per_sec': 'T5_T6/s'}, inplace=True)
 
-    st.header("Section-based Stress Analysis")
+    st.sidebar.subheader("Stress Analysis and Data Exploration")
 
-    st.write(stress_subset)
+    stress_analysis_checkbox = st.sidebar.checkbox("Stress Analysis & Data Exploration")
 
+    if stress_analysis_checkbox:
 
-    # TODO - get mean & standard deviation
+        st.header("Section-based Stress Analysis")
 
-
-    st.header("Basic Visuals:")
-
-    MOS_vs_Age_gender_based = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
-        x = "Age",
-        y = "MOS_total",
-        color = "Gender",
-        tooltip = ["STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
-    ).properties(
-        title = "Number of Stress Moments vs. Age based (gender color-coded)"
-    ).interactive()
-    MOS_vs_Age_gender_based.configure_header(
-        titleColor='black',
-        titleFontSize=14,
-    )
-
-    st.altair_chart(MOS_vs_Age_gender_based, use_container_width=True)
+        st.write(stress_subset)
 
 
-    st.header("One-time Measurement Analysis")
+        st.header("Basic Visuals:")
 
-    col1, col2 = st.columns(2, gap="medium")
-
-    with col1:
-
-        options_one = Patient_one_time.columns
-        var1 = st.selectbox("Please select the Measurement variable you want to visualize on the X-axis",
-                     options = options_one)
-        var1_series = Patient_one_time[var1]
-
-    with col2:
-
-        options_two = Patient_one_time.columns
-        var2 = st.selectbox("Please select the Stress variables you want to visualize on the Y-axis",
-                     options=options_two)
-        var2_series = Patient_one_time[var2]
-
-    try:
-
-        combined_plot = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
-            x = var1,
-            y = var2,
-            tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
+        MOS_vs_Age_gender_based = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
+            x = "Age",
+            y = "MOS_total",
+            color = "Gender",
+            tooltip = ["STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
+        ).properties(
+            title = "Number of Stress Moments vs. Age based (gender color-coded)"
         ).interactive()
+        MOS_vs_Age_gender_based.configure_header(
+            titleColor='black',
+            titleFontSize=14,
+        )
 
-        st.altair_chart(combined_plot, use_container_width=True)
+        st.altair_chart(MOS_vs_Age_gender_based, use_container_width=True)
 
-        add_color_var = st.checkbox("Add color indicator variable: ")
 
-        if add_color_var:
-            options_three = Patient_one_time.columns
+        st.header("One-time Measurement Analysis")
 
-            var3 = st.selectbox("Select variable for coloring:",
-                                options=options_three)
-            var3_series = Patient_one_time[var3]
+        col1, col2 = st.columns(2, gap="medium")
 
-            combined_plot_data = pd.concat([var1_series, var2_series, var3_series], axis=1)
+        with col1:
 
-            combined_plot = alt.Chart(Patient_one_time).mark_circle(size=60).encode(
-                x=var1,
-                y=var2,
-                color = var3
+            options_one = Patient_one_time.columns
+            var1 = st.selectbox("Please select the Measurement variable you want to visualize on the X-axis",
+                         options = options_one)
+            var1_series = Patient_one_time[var1]
+
+        with col2:
+
+            options_two = Patient_one_time.columns
+            var2 = st.selectbox("Please select the Stress variables you want to visualize on the Y-axis",
+                         options=options_two)
+            var2_series = Patient_one_time[var2]
+
+        try:
+
+            combined_plot = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
+                x = var1,
+                y = var2,
+                tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
             ).interactive()
 
             st.altair_chart(combined_plot, use_container_width=True)
 
+            add_color_var = st.checkbox("Add color indicator variable: ")
 
-    except st.StreamlitAPIException:
-        st.info("You need to select two different columns to display")
+            if add_color_var:
+                options_three = Patient_one_time.columns
 
-    st.header("Section-based Analysis")
+                var3 = st.selectbox("Select variable for coloring:",
+                                    options=options_three)
+                var3_series = Patient_one_time[var3]
+
+                combined_plot_data = pd.concat([var1_series, var2_series, var3_series], axis=1)
+
+                combined_plot = alt.Chart(Patient_one_time).mark_circle(size=60).encode(
+                    x=var1,
+                    y=var2,
+                    color = var3
+                ).interactive()
+
+                st.altair_chart(combined_plot, use_container_width=True)
+
+
+        except st.StreamlitAPIException:
+            st.info("You need to select two different columns to display")
+
+    section_based_analysis_checkbox = st.sidebar.checkbox("Analyse section-based Stress")
+    if section_based_analysis_checkbox:
+
+        st.header("Section-based Analysis")
+
+        st.header("Calculate own MOS / time interval for desired section:")
+
+        MOS_sections = Patient_stress[["MOS_total_old", "MOS_total_new", "MOS_HS_HS5min_old", "MOS_HS_HS5min_new",
+                                       "MOS_T1_T2_old", "MOS_T1_T2_new",
+                                       "MOS_T2_T3_old", "MOS_T2_T3_new",
+                                       "MOS_T3_T4_old", "MOS_T3_T4_new",
+                                       "MOS_T4_T5_old", "MOS_T4_T5_new",
+                                       "MOS_T5_T6_old", "MOS_T5_T6_new"]]
+
+        MOS_section_options = MOS_sections.columns
+        MOS_stress_section = st.selectbox("Select Column Name for the Section you want to calculate the MOS: ",
+                                          options=MOS_section_options)
+
+        # user-defined time duration for MOS per time interval calculation (e.g. number of MOS per second)
+        time_duration = st.number_input(
+            "Please specify the time interval for which you want the number of Stress Moments", value=1)
+
+        stress_subset_py_calc = MOS_per_time_interval(Patient_stress,
+                                                      MOS_stress_section=MOS_stress_section,
+                                                      colName=f"{MOS_stress_section}/{time_duration}s",
+                                                      time_interval=time_duration)
+
+        stress_subset_py_calc[["ID", "Gender", "Age", f"{MOS_stress_section}/{time_duration}s"]]
+
+        st.write("Average number of Stress moments per", time_duration, "seconds for interval", MOS_stress_section,
+                 stress_subset_py_calc[f"{MOS_stress_section}/{time_duration}s"].mean())
+
+        # st.write(stress_subset_py_calc)
+
+        # TODO - get mean & standard deviation
+
+        st.header("Trimmed Stress Subset: ")
+
+        st.write(stress_subset)
+
+        st.write("Average number of Stress moments per second over whole OP", stress_subset['MOS/s'].mean())
+
+        # TODO - throw these average and std calculations into one function, where columns can be selected and calculations are done
+
+        MOS_total_mean = stress_subset['MOS/s'].mean()
+        MOS_total_std = stress_subset['MOS/s'].std()
+
+        HS_HS5_mean = stress_subset['HS_HS5/s'].mean()
+        HS_HS5_std = stress_subset['HS_HS5/s'].std()
+
+        T1_T2_mean = stress_subset['T1_T2/s'].mean()
+        T1_T2_std = stress_subset['T1_T2/s'].std()
+
+        T2_T3_mean = stress_subset['T2_T3/s'].mean()
+        T2_T3_std = stress_subset['T2_T3/s'].std()
+
+        T3_T4_mean = stress_subset['T3_T4/s'].mean()
+        T3_T4_std = stress_subset['T3_T4/s'].std()
+
+        T4_T5_mean = stress_subset['T4_T5/s'].mean()
+        T4_T5_std = stress_subset['T4_T5/s'].std()
+
+        T5_T6_mean = stress_subset['T5_T6/s'].mean()
+        T5_T6_std = stress_subset['T5_T6/s'].std()
+
+        sections = list(stress_subset.loc[:, ~stress_subset.columns.isin(["ID", "Gender", "Age", "MOS_total", "HS_HS5", "T1_T2",
+                                                                          "T2_T3", "T3_T4", "T4_T5", "T5_T6"])].columns)
+
+        section_mean_std_df = pd.DataFrame(columns = sections)
+        section_means = [MOS_total_mean, HS_HS5_mean, T1_T2_mean, T2_T3_mean, T3_T4_mean, T4_T5_mean, T5_T6_mean]
+        section_stds = [MOS_total_std, HS_HS5_std, T1_T2_std, T2_T3_std, T3_T4_std, T4_T5_std, T5_T6_std]
+        section_mean_std_df.loc["mean"] = section_means
+        section_mean_std_df.loc["std"] = section_stds
+        #datf.append(section_stds)
+
+        st.subheader("Mean & Standard Deviation Stress Moments per second for each Section: ")
+        st.write(section_mean_std_df)
+
+
+        # TODO -- combine mean and standard deviation measurements for each section into one dataframe
+
+
+        # TODO - average and std per participant (for each row)
+
+        patient_stress_sections = stress_subset.loc[:, ~stress_subset.columns.isin(["Gender", "Age", "MOS_total", "HS_HS5",
+                                                                                    "MOS/s",
+                                                                                    "T1_T2", "T2_T3",
+                                                                                    "T3_T4", "T4_T5", "T5_T6"])]
+
+        st.write("Patient Stress Section Data for Mean and Standard Deviation Calculation: ", patient_stress_sections)
+
+        patient_means_stds = stress_subset[["ID"]]
+
+        # Patient Mean and Standard Deviation over all sections
+        patient_means_stds["PatMean"] = patient_stress_sections.mean(axis = 1)
+        patient_means_stds["PatStd"] = patient_stress_sections.std(axis=1)
+
+        #st.subheader("Mean and Standard Deviation per Patient:")
+        #st.write(patient_means_stds)
+
+        # TODO - creating the desired form of the dataframe with pd.pivot() would be a more elegant solution
+        patients = list(Patient_one_time["ID"].unique())
+        patient_mean_std_df = pd.DataFrame(columns = patients)
+        patient_means = list(patient_means_stds["PatMean"])
+        patient_stds = list(patient_means_stds["PatStd"])
+
+        patient_mean_std_df.loc["mean"] = patient_means
+        patient_mean_std_df.loc["std"] = patient_stds
+        #section_means = [MOS_total_mean, HS_HS5_mean, T1_T2_mean, T2_T3_mean, T3_T4_mean, T4_T5_mean, T5_T6_mean]
+        #section_stds = [MOS_total_std, HS_HS5_std, T1_T2_std, T2_T3_std, T3_T4_std, T4_T5_std, T5_T6_std]
+
+        #patient_mean_std_df_pivot = patient_means_stds.pivot(index = ["PatMean", "PatStd"], columns = ["ID"])
+        #st.write(patient_mean_std_df_pivot)
+
+        st.subheader("Mean & Standard Deviation Stress Moments per second for each Patient: ")
+
+        st.write(patient_mean_std_df)
+
+        st.subheader("Mean and Standard Deviation per Patient:")
+        st.write(patient_means_stds)
 
 
 
 
 
-    col_sec1, col_sec2 = st.columns(2, gap="medium")
+
+
+
+        col_sec1, col_sec2 = st.columns(2, gap="medium")
 
 
 
@@ -173,7 +321,7 @@ if uploaded_data_file is not None:
 
 st.sidebar.subheader("Signal Visualization")
 
-visualize_eda = st.sidebar.checkbox("Visualize EDA recordings for a specific patient: ")
+visualize_eda = st.sidebar.checkbox("Visualize EDA recordings for a specific patient: (Note: this takes some time to process)")
 
 if visualize_eda:
 
@@ -196,7 +344,7 @@ if visualize_eda:
         st.write("File Type is", file_extension)
         file_name_signals = uploaded_signal_measurements.name.split(".")[0] + "." + uploaded_signal_measurements.name.split(".")[1]
 
-        st.write("Data File name: ", file_name_signals)
+        #st.write("Data File name: ", file_name_signals)
 
         path_to_signals_file = str(path) + "/" + file_name_signals
 
@@ -213,6 +361,16 @@ if visualize_eda:
             sensor_measurements_filtered = sensor_measurements[sensor_measurements["ID"] == selected_patient]
 
             st.write(sensor_measurements_filtered)
+
+            eda_visual = st.sidebar.checkbox(f"Visualize EDA measurement of patient: {selected_patient}")
+
+            if eda_visual:
+                EDA_plot = alt.Chart(sensor_measurements_filtered).mark_area().encode(
+                    x = "time_iso:T",
+                    y = "EDA:Q"
+                ).interactive()
+
+                st.altair_chart(EDA_plot, use_container_width=True)
 
         elif file_extension == "csv":
             sensor_measurements = pd.read_csv(path_to_signals_file, delimiter=";")
