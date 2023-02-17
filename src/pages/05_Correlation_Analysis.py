@@ -75,9 +75,13 @@ if uploaded_data_file is not None:
 
     st.header("Datasets within the Output file:")
 
-    st.write("One time measurements", Patient_one_time)
-    st.write("Section-based Measurements", Patient_section_times)
-    st.write("Section-based Stress Moments", Patient_stress)
+    show_hide_tables = st.checkbox("Show / hide Tables:")
+
+    if show_hide_tables:
+
+        st.write("One time measurements", Patient_one_time)
+        st.write("Section-based Measurements", Patient_section_times)
+        st.write("Section-based Stress Moments", Patient_stress)
 
     stress_subset = Patient_stress[["ID", "Gender", "Age",
                     "MOS_total_new", "MOS_total_new_per_sec",
@@ -184,12 +188,12 @@ if uploaded_data_file is not None:
         except st.StreamlitAPIException:
             st.info("You need to select two different columns to display")
 
-    section_based_analysis_checkbox = st.sidebar.checkbox("Analyse section-based Stress")
+    section_based_analysis_checkbox = st.sidebar.checkbox("Section-based Stress Analysis")
     if section_based_analysis_checkbox:
 
         st.header("Section-based Analysis")
 
-        st.header("Calculate own MOS / time interval for desired section:")
+        st.subheader("Calculate own MOS / time interval for desired section:")
 
         MOS_sections = Patient_stress[["MOS_total_old", "MOS_total_new", "MOS_HS_HS5min_old", "MOS_HS_HS5min_new",
                                        "MOS_T1_T2_old", "MOS_T1_T2_new",
@@ -199,12 +203,12 @@ if uploaded_data_file is not None:
                                        "MOS_T5_T6_old", "MOS_T5_T6_new"]]
 
         MOS_section_options = MOS_sections.columns
-        MOS_stress_section = st.selectbox("Select Column Name for the Section you want to calculate the MOS: ",
+        MOS_stress_section = st.selectbox("Select Column for Section you want to calculate Stress Moments for: ",
                                           options=MOS_section_options)
 
         # user-defined time duration for MOS per time interval calculation (e.g. number of MOS per second)
         time_duration = st.number_input(
-            "Please specify the time interval for which you want the number of Stress Moments", value=1)
+            "Please specify the time interval (in seconds) for which you want the number of Stress Moments", value=1)
 
         stress_subset_py_calc = MOS_per_time_interval(Patient_stress,
                                                       MOS_stress_section=MOS_stress_section,
@@ -213,8 +217,8 @@ if uploaded_data_file is not None:
 
         stress_subset_py_calc[["ID", "Gender", "Age", f"{MOS_stress_section}/{time_duration}s"]]
 
-        st.write("Average number of Stress moments per", time_duration, "seconds for interval", MOS_stress_section,
-                 stress_subset_py_calc[f"{MOS_stress_section}/{time_duration}s"].mean())
+        st.write("Average number of Stress moments per", time_duration, "seconds for interval ", MOS_stress_section,
+                 " is:", stress_subset_py_calc[f"{MOS_stress_section}/{time_duration}s"].mean())
 
         # st.write(stress_subset_py_calc)
 
@@ -224,7 +228,7 @@ if uploaded_data_file is not None:
 
         st.write(stress_subset)
 
-        st.write("Average number of Stress moments per second over whole OP", stress_subset['MOS/s'].mean())
+        st.write("Average number of Stress moments per second over whole OP is: ", stress_subset['MOS/s'].mean())
 
         # TODO - throw these average and std calculations into one function, where columns can be selected and calculations are done
 
@@ -302,8 +306,75 @@ if uploaded_data_file is not None:
 
         st.write(patient_mean_std_df)
 
-        st.subheader("Mean and Standard Deviation per Patient:")
-        st.write(patient_means_stds)
+        #st.subheader("Mean and Standard Deviation per Patient:")
+        #st.write(patient_means_stds)
+
+        stress_subset_cols = patient_stress_sections[["HS_HS5/s", "T1_T2/s", "T2_T3/s",
+          "T3_T4/s", "T4_T5/s", "T5_T6/s"]].columns
+
+        patient_stress_sections_long = pd.melt(patient_stress_sections, id_vars = ['ID'],
+                                               value_vars = ["HS_HS5/s", "T1_T2/s", "T2_T3/s",
+                                                             "T3_T4/s", "T4_T5/s", "T5_T6/s"],
+                                               var_name = "Section", value_name = "MOS/s")
+
+        #st.write("Patient_stress_section_long: ", patient_stress_sections_long)
+
+        selected_section = st.sidebar.radio(
+            "Select Section to display Stress level: ",
+            #    key="visibility",
+            options=stress_subset_cols,
+        )
+
+        #st.write(patient_stress_sections_long[patient_stress_sections_long['Section'] == selected_section]['MOS/s'])
+        sub_patient_stress_sections_long = patient_stress_sections_long[patient_stress_sections_long['Section'] == selected_section]
+
+        #st.write(patient_stress_sections_long['MOS/s'])
+
+        bars_sections = alt.Chart(sub_patient_stress_sections_long).mark_bar().encode(
+            x = alt.X("ID:N", sort = ['Pat.1, Pat.2']),
+            #y = alt.Y(f"{patient_stress_sections_long[patient_stress_sections_long['Section'] == selected_section]['MOS/s']}:Q", sort = 'ascending')
+            y=alt.Y("MOS/s:Q", sort='ascending')
+
+        )
+
+        # TODO - add section mean
+
+        #st.write(section_mean_std_df.head(1)[selected_section])
+        #st.write(sub_patient_stress_sections_long)
+
+        #rule = alt.Chart(sub_patient_stress_sections_long).mark_rule().encode(
+        #    y=f'mean({sub_patient_stress_sections_long}):Q'
+        #)
+
+        #barChart = (bars_sections + rule)
+
+        #st.altair_chart(barChart)
+        st.altair_chart(bars_sections, use_container_width=True)
+
+        #threshold = pd.DataFrame([{"threshold": 90}])
+
+        #bars = alt.Chart(source).mark_bar().encode(
+        #    x="year:O",
+        #    y="wheat:Q",
+        #)
+
+        #highlight = alt.Chart(source).mark_bar(color="#e45755").encode(
+        #    x='year:O',
+        #    y='baseline:Q',
+        #    y2='wheat:Q'
+        #).transform_filter(
+        #    alt.datum.wheat > 90
+        #).transform_calculate("baseline", "90")
+
+        #rule = alt.Chart(threshold).mark_rule().encode(
+        #    y='threshold:Q'
+        #)
+
+        #(bars + highlight + rule).properties(width=600)
+
+
+        # TODO - plot Mean of number of Stress sections (y-axis) vs. each section (on x-axis)
+
 
 
 
