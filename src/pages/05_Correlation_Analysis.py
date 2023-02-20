@@ -7,7 +7,7 @@ import numpy as np
 #import E4_Analysis_tools as e4at
 
 import altair as alt
-
+from io import BytesIO
 
 # temporarily saves the file
 @st.cache
@@ -75,13 +75,39 @@ if uploaded_data_file is not None:
 
     st.header("Datasets within the Output file:")
 
-    show_hide_tables = st.checkbox("Show / hide Tables:")
+    show_hide_tables = st.checkbox("Show / Hide Tables (includes Download Option):")
 
     if show_hide_tables:
 
         st.write("One time measurements", Patient_one_time)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            Patient_one_time.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name="One-time-measurements.xlsx",
+                                            mime="application/vnd.ms-excel")
+
         st.write("Section-based Measurements", Patient_section_times)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            Patient_section_times.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name="Patient-section-times.xlsx",
+                                            mime="application/vnd.ms-excel")
+
         st.write("Section-based Stress Moments", Patient_stress)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            Patient_stress.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name="Patient-stress-times.xlsx",
+                                            mime="application/vnd.ms-excel")
+
+
+
 
     stress_subset = Patient_stress[["ID", "Gender", "Age",
                     "MOS_total_new", "MOS_total_new_per_sec",
@@ -117,6 +143,13 @@ if uploaded_data_file is not None:
         st.header("Section-based Stress Analysis")
 
         st.write(stress_subset)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            stress_subset.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name="Patient-stress-sections.xlsx",
+                                            mime="application/vnd.ms-excel")
 
 
         st.header("Basic Visuals:")
@@ -157,11 +190,30 @@ if uploaded_data_file is not None:
 
         try:
 
-            combined_plot = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
-                x = var1,
-                y = var2,
-                tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
-            ).interactive()
+            #st.write(Patient_one_time)
+
+            if var1 == "ID":
+                combined_plot = alt.Chart(Patient_one_time).mark_circle(size=60).encode(
+                    x=alt.X(var1, sort = ['Pat.1, Pat.2']),
+                    y=var2,
+                    tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml",
+                             "NRS max"]
+                ).interactive()
+
+            #elif var2 == "ID":
+            #    combined_plot = alt.Chart(Patient_one_time).mark_circle(size=60).encode(
+            #        x = var1,
+            #        y=alt.Y(var2, sort = ['Pat.1, Pat.2']),
+            #        tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml",
+            #                 "NRS max"]
+            #    ).interactive()
+
+            else:
+                combined_plot = alt.Chart(Patient_one_time).mark_circle(size = 60).encode(
+                    x = var1,
+                    y = var2,
+                    tooltip=["ID", "Gender", "STAI-T/T-Werte", "PostOPFrage", "Sedierung erhalten", "Mepivacain 1%/ml", "NRS max"]
+                ).interactive()
 
             st.altair_chart(combined_plot, use_container_width=True)
 
@@ -215,7 +267,15 @@ if uploaded_data_file is not None:
                                                       colName=f"{MOS_stress_section}/{time_duration}s",
                                                       time_interval=time_duration)
 
-        stress_subset_py_calc[["ID", "Gender", "Age", f"{MOS_stress_section}/{time_duration}s"]]
+        rel_cols_stress_subset = stress_subset_py_calc[["ID", "Gender", "Age", f"{MOS_stress_section}/{time_duration}s"]]
+        st.write(rel_cols_stress_subset)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            rel_cols_stress_subset.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name=f"Stress-section-{MOS_stress_section}-timeInterval-{time_duration}-seconds.xlsx",
+                                            mime="application/vnd.ms-excel")
 
         st.write("Average number of Stress moments per", time_duration, "seconds for interval ", MOS_stress_section,
                  " is:", stress_subset_py_calc[f"{MOS_stress_section}/{time_duration}s"].mean())
@@ -227,6 +287,13 @@ if uploaded_data_file is not None:
         st.header("Trimmed Stress Subset: ")
 
         st.write(stress_subset)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            stress_subset.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name=f"Stress-subset-new-Algorithm.xlsx",
+                                            mime="application/vnd.ms-excel")
 
         st.write("Average number of Stress moments per second over whole OP is: ", stress_subset['MOS/s'].mean())
 
@@ -263,9 +330,46 @@ if uploaded_data_file is not None:
         section_mean_std_df.loc["std"] = section_stds
         #datf.append(section_stds)
 
+        #st.write("Long Format", section_mean_std_df_long)
+
         st.subheader("Mean & Standard Deviation Stress Moments per second for each Section: ")
         st.write(section_mean_std_df)
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            section_mean_std_df.to_excel(writer, index = False, sheet_name="Sheet1")
 
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name=f"mean_std_per_second_per_section.xlsx",
+                                            mime="application/vnd.ms-excel")
+
+        ### long format to plot mean & std for each section
+        section_mean_std_df_long = pd.DataFrame(columns = ["Section", "Mean", "StandardDev"])
+        section_mean_std_df_long["Section"] = ["MOS_total", "HS_HS5", "T1_T2","T2_T3", "T3_T4", "T4_T5", "T5_T6"]
+        section_mean_std_df_long["Mean"] = section_means
+        section_mean_std_df_long["StandardDev"] = section_stds
+
+        section_mean_std_df_long_grouped_bar = section_mean_std_df_long.melt(id_vars="Section", value_vars=["Mean", "StandardDev"])
+        #st.write(section_mean_std_df_long.melt(id_vars="Section", value_vars=["Mean", "StandardDev"]))
+
+        st.subheader("Bar Chart Display of Mean & Standard Deviation for each Section")
+
+        section_based_barChart_grouped = alt.Chart(section_mean_std_df_long_grouped_bar).mark_bar().encode(
+            x = "Section:N",
+            y = "value:Q",
+            color = "variable:N",
+            column = "variable:N"
+        )
+
+        st.altair_chart(section_based_barChart_grouped, use_container_width=True)
+
+
+
+        #section_based_barChart = alt.Chart(section_mean_std_df_long).mark_bar().encode(
+        #    x = "Section:N",
+        #    y = "Mean:Q"
+        #)
+
+        #st.altair_chart(section_based_barChart, use_container_width=True)
 
         # TODO -- combine mean and standard deviation measurements for each section into one dataframe
 
@@ -278,6 +382,14 @@ if uploaded_data_file is not None:
                                                                                     "T3_T4", "T4_T5", "T5_T6"])]
 
         st.write("Patient Stress Section Data for Mean and Standard Deviation Calculation: ", patient_stress_sections)
+
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            patient_stress_sections.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name=f"mean_std_per_second_per_patient_and_section.xlsx",
+                                            mime="application/vnd.ms-excel")
 
         patient_means_stds = stress_subset[["ID"]]
 
@@ -306,6 +418,15 @@ if uploaded_data_file is not None:
 
         st.write(patient_mean_std_df)
 
+        buffer = BytesIO()
+        with pd.ExcelWriter(buffer, engine="xlsxwriter") as writer:
+            patient_mean_std_df.to_excel(writer, index = False, sheet_name="Sheet1")
+
+        download_excel = st.download_button(label="Download Excel file", data=buffer,
+                                            file_name=f"mean_std_per_second_per_patient.xlsx",
+                                            mime="application/vnd.ms-excel")
+
+
         #st.subheader("Mean and Standard Deviation per Patient:")
         #st.write(patient_means_stds)
 
@@ -330,26 +451,54 @@ if uploaded_data_file is not None:
 
         #st.write(patient_stress_sections_long['MOS/s'])
 
+        st.subheader("Bar Chart displaying Number of MOS per Patient, for selected Section:")
+
         bars_sections = alt.Chart(sub_patient_stress_sections_long).mark_bar().encode(
             x = alt.X("ID:N", sort = ['Pat.1, Pat.2']),
             #y = alt.Y(f"{patient_stress_sections_long[patient_stress_sections_long['Section'] == selected_section]['MOS/s']}:Q", sort = 'ascending')
             y=alt.Y("MOS/s:Q", sort='ascending')
-
         )
 
-        # TODO - add section mean
+        add_means = st.checkbox("Add Section Mean:")
 
-        #st.write(section_mean_std_df.head(1)[selected_section])
-        #st.write(sub_patient_stress_sections_long)
+        if add_means:
+            section_mean = section_mean_std_df[[selected_section]].head(1)
+            #st.write(section_mean)
+            section_std = section_mean_std_df[[selected_section]].tail(1)
+            #st.write(section_std)
+            #section_mean_std = section_mean[selected_section] + (2 * section_std[selected_section])
+            #st.write(section_mean_std)
+            section_mean_value = section_mean[selected_section].values[0]
 
-        #rule = alt.Chart(sub_patient_stress_sections_long).mark_rule().encode(
-        #    y=f'mean({sub_patient_stress_sections_long}):Q'
-        #)
+            mean_line = alt.Chart(section_mean).mark_rule(color = "red").encode(y = selected_section)
+            #mean_text = alt.Chart(section_mean).mark_text(
+            #    text = f"Section {selected_section} with Mean: {section_mean_value}",
+            #    align="right",
+            #    baseline = "bottom"
+            #)
+            #mean_line = alt.Chart().mark_rule().encode(y = alt.datum(section_mean_value))
 
-        #barChart = (bars_sections + rule)
+            #bars_sections.configure_header(
+            #    title=f"Section {selected_section} with Mean: {section_mean_value}")
+
+
+            barChart = (bars_sections + mean_line)
+
+            #st.altair_chart(barChart)
+
+        else:
+            barChart = bars_sections
+
+
+
+        ###################### TODOs ######################
+
+        # TODO - add section mean based on 'section_mean_std_df' -- columns are sections & 1st row = mean, 2nd row = std
+        # TODO - make all the tables downloadable as excel
+
 
         #st.altair_chart(barChart)
-        st.altair_chart(bars_sections, use_container_width=True)
+        st.altair_chart(barChart, use_container_width=True)
 
         #threshold = pd.DataFrame([{"threshold": 90}])
 
